@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowDownUp, Ban, CheckCircle2, Lock, Search, ShieldAler
 import { api, refreshAll } from "@/lib/api-client";
 import type { BetRowDTO, RaceDetailDTO } from "@/lib/dto";
 import { amountSchema } from "@/lib/validation";
+import { normalizePhone } from "@/lib/identity";
 import { formatDateTime, formatMoney, formatOdds, formatTime } from "@/lib/format";
 import { PAYMENT_LABEL, type PaymentState } from "@/lib/status";
 import { Button, EmptyState, Field, ICON, Input, Modal, PaymentBadge, Plate, SectionTitle, Select, Stat, SummaryRow, Tag, cx } from "../ui";
@@ -147,7 +148,7 @@ export function BetsTab({ detail, onGoToDrivers }: { detail: RaceDetailDTO; onGo
 function BetForm({ detail }: { detail: RaceDetailDTO }) {
   const { race, drivers } = detail;
   const [bettorName, setBettorName] = useState("");
-  const [fivemId, setFivemId] = useState("");
+  const [phone, setPhone] = useState("");
   const [driverId, setDriverId] = useState("");
   const [amount, setAmount] = useState("");
   const [confirm, setConfirm] = useState(false);
@@ -157,19 +158,20 @@ function BetForm({ detail }: { detail: RaceDetailDTO }) {
   const parsed = amountSchema.safeParse(amount);
   const amountError = amount && !parsed.success ? parsed.error.issues[0]?.message : null;
   const driver = drivers.find((d) => d.id === driverId);
-  const valid = bettorName.trim().length > 0 && !!driver && parsed.success;
+  const phoneOk = !phone.trim() || /^\+?[0-9][0-9 .\-()]{0,28}$/.test(phone.trim());
+  const valid = bettorName.trim().length > 0 && !!driver && parsed.success && phoneOk;
 
   // Contrôle immédiat (non bloquant côté serveur, qui reste seul juge) : joueur déjà inscrit ?
   const already = useMemo(() => {
     const n = bettorName.trim().toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/\s+/g, " ");
-    const f = fivemId.replace(/\s+/g, "").toLowerCase();
+    const f = normalizePhone(phone);
     if (!n && !f) return null;
     return detail.bets.find(
       (b) =>
-        (f && b.fivemId?.toLowerCase() === f) ||
-        (n && b.bettorName.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/\s+/g, " ") === n && (!f || !b.fivemId)),
+        (f && normalizePhone(b.phone) === f) ||
+        (n && b.bettorName.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/\s+/g, " ") === n && (!f || !normalizePhone(b.phone))),
     ) ?? null;
-  }, [bettorName, fivemId, detail.bets]);
+  }, [bettorName, phone, detail.bets]);
 
   function review(e: React.FormEvent) {
     e.preventDefault();
@@ -184,12 +186,12 @@ function BetForm({ detail }: { detail: RaceDetailDTO }) {
     try {
       await api(`/api/races/${race.id}/bets`, {
         method: "POST",
-        json: { bettorName, fivemId: fivemId || null, driverId, amount: parsed.data, requestId: requestId.current },
+        json: { bettorName, phone: phone || null, driverId, amount: parsed.data, requestId: requestId.current },
       });
       toast.success("Pari enregistré", { description: `${bettorName.trim()} · ${formatMoney(parsed.data)} sur ${driver!.name}` });
       setConfirm(false);
       setBettorName("");
-      setFivemId("");
+      setPhone("");
       setAmount("");
       setDriverId("");
       await refreshAll();
@@ -209,8 +211,8 @@ function BetForm({ detail }: { detail: RaceDetailDTO }) {
           <Field label="Nom RP du parieur" htmlFor="bettor-name" required error={already ? `Déjà parié : ${already.bettorName} (${formatMoney(already.amount)} sur ${already.driverName}).` : null}>
             <Input id="bettor-name" value={bettorName} onChange={(e) => setBettorName(e.target.value)} maxLength={60} autoComplete="off" placeholder="Ex. Tony Marchetti" />
           </Field>
-          <Field label="Identifiant FiveM" htmlFor="fivem-id" hint="Facultatif (license:…, discord:…)">
-            <Input id="fivem-id" value={fivemId} onChange={(e) => setFivemId(e.target.value)} maxLength={80} autoComplete="off" placeholder="license:…" />
+          <Field label="Numéro de téléphone" htmlFor="bettor-phone" hint="Facultatif — identifie le joueur" error={phoneOk ? null : "Chiffres, espaces, +, - ou points uniquement."}>
+            <Input id="bettor-phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={30} autoComplete="off" placeholder="555-0123" />
           </Field>
           <Field label="Pilote" htmlFor="bet-driver" required>
             <Select id="bet-driver" value={driverId} onChange={(e) => setDriverId(e.target.value)}>
@@ -244,7 +246,7 @@ function BetForm({ detail }: { detail: RaceDetailDTO }) {
         }
       >
         <dl>
-          <SummaryRow label="Parieur" value={<>{bettorName.trim()}{fivemId.trim() && <span className="block text-xs text-mute">{fivemId.trim()}</span>}</>} />
+          <SummaryRow label="Parieur" value={<>{bettorName.trim()}{phone.trim() && <span className="block text-xs text-mute">Tél. {phone.trim()}</span>}</>} />
           <SummaryRow label="Course" value={race.name} />
           <SummaryRow label="Pilote choisi" value={driver ? `${driver.number != null ? `#${driver.number} ` : ""}${driver.name}` : "—"} />
           <SummaryRow label="Montant de la mise" value={parsed.success ? formatMoney(parsed.data) : "—"} strong />
@@ -273,9 +275,10 @@ function BetTable({ detail }: { detail: RaceDetailDTO }) {
   const finalState = ["result", "paid", "cancelled", "refunded"].includes(detail.race.status);
   const rows = useMemo(() => {
     const n = q.trim().toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "");
+    const qDigits = q.replace(/\D+/g, "");
     const out = detail.bets.filter(
       (b) =>
-        (!n || b.bettorName.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").includes(n) || (b.fivemId ?? "").toLowerCase().includes(n)) &&
+        (!n || b.bettorName.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").includes(n) || (!!qDigits && (b.phone ?? "").replace(/\D+/g, "").includes(qDigits))) &&
         (!driver || b.driverId === driver) &&
         (!outcome || b.outcome === outcome) &&
         (!payment || b.payment === payment),
@@ -293,7 +296,7 @@ function BetTable({ detail }: { detail: RaceDetailDTO }) {
       <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-dim" {...ICON} />
-          <Input className="pl-9" placeholder="Rechercher un parieur ou un identifiant…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher un parieur" />
+          <Input className="pl-9" placeholder="Rechercher un parieur ou un téléphone…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher un parieur" />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex">
           <Select value={driver} onChange={(e) => setDriver(e.target.value)} aria-label="Filtrer par pilote" className="lg:w-44">
@@ -385,7 +388,7 @@ function BetRow({ b }: { b: BetRowDTO }) {
     <tr className={cx(b.outcome === "winner" && "bg-flame/[0.05]")}>
       <td>
         <div className="font-medium">{b.bettorName}</div>
-        <div className="text-xs text-dim">{b.fivemId ?? "—"} · {formatTime(b.createdAt)}</div>
+        <div className="text-xs text-dim">{b.phone ? `Tél. ${b.phone}` : "—"} · {formatTime(b.createdAt)}</div>
       </td>
       <td className="whitespace-nowrap">
         {b.driverNumber != null && <span className="mr-1.5 font-display text-mute">#{b.driverNumber}</span>}

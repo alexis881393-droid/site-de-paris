@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { asc } from "drizzle-orm";
 import type { Db } from "../db/client";
-import { bets, drivers, operationLog, raceClosures, raceResults, races, settlements } from "../db/schema";
+import { bets, driverRegistryHidden, drivers, operationLog, raceClosures, raceResults, races, settlements } from "../db/schema";
 
 export const BACKUP_FORMAT = "racebet-control-backup";
 export const BACKUP_FORMAT_VERSION = 1;
@@ -14,6 +14,7 @@ export type BackupData = {
   raceResults: Record<string, unknown>[];
   settlements: Record<string, unknown>[];
   operationLog: Record<string, unknown>[];
+  driverRegistryHidden: Record<string, unknown>[];
 };
 
 export type BackupFile = {
@@ -47,6 +48,7 @@ export async function buildBackup(db: Db): Promise<BackupFile> {
       raceResults: plain(await q.select().from(raceResults).orderBy(asc(raceResults.raceId))),
       settlements: plain(await q.select().from(settlements).orderBy(asc(settlements.createdAt), asc(settlements.id))),
       operationLog: plain(await q.select().from(operationLog).orderBy(asc(operationLog.id))),
+      driverRegistryHidden: plain(await q.select().from(driverRegistryHidden).orderBy(asc(driverRegistryHidden.nameKey))),
     };
     return result;
   }, { isolationLevel: "repeatable read", accessMode: "read only" });

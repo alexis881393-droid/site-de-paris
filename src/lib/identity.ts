@@ -17,20 +17,31 @@ export function cleanDisplayName(input: string): string {
   return input.normalize("NFKC").replace(/\s+/g, " ").trim();
 }
 
-/** Identifiant FiveM normalisé (license:xxx, steam:xxx, discord:xxx…), sans espaces, minuscules. */
-export function normalizeFivemId(input: string | null | undefined): string | null {
+/**
+ * Numéro de téléphone RP normalisé : chiffres uniquement (le "+" initial est conservé).
+ * "06 12-34.56 78" = "0612345678". null si aucun chiffre.
+ */
+export function normalizePhone(input: string | null | undefined): string | null {
   if (input == null) return null;
-  const v = input.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
-  return v.length ? v : null;
+  const t = input.normalize("NFKC").trim();
+  const digits = t.replace(/\D+/g, "");
+  if (!digits) return null;
+  return (t.startsWith("+") ? "+" : "") + digits;
+}
+
+/** Affichage : espaces superflus retirés. */
+export function cleanPhone(input: string | null | undefined): string | null {
+  const v = input?.normalize("NFKC").replace(/\s+/g, " ").trim();
+  return v ? v : null;
 }
 
 /**
  * Clé d'identité du parieur dans une course.
- * Préfixes distincts ("fivem:" / "name:") : un nom RP ne peut jamais entrer
- * en collision avec un identifiant FiveM.
+ * Préfixes distincts ("tel:" / "name:") : un nom RP ne peut jamais entrer
+ * en collision avec un numéro de téléphone.
  */
-export function bettorIdentityKey(name: string, fivemId?: string | null): string {
-  const f = normalizeFivemId(fivemId);
-  if (f) return `fivem:${f}`;
+export function bettorIdentityKey(name: string, phone?: string | null): string {
+  const p = normalizePhone(phone);
+  if (p) return `tel:${p}`;
   return `name:${normalizeName(name)}`;
 }

@@ -9,6 +9,7 @@ import {
   closeBets,
   createRace,
   deleteRace,
+  hideKnownDriver,
   openBets,
   paySettlement,
   placeBet,
@@ -154,8 +155,8 @@ describe("Test 5 — un seul pari par joueur et par course", () => {
     const { race, drivers: [A, B] } = await setupOpenRace(db);
     await placeBet(db, race.id, { bettorName: "José Dupont", driverId: A!.id, amount: 100 });
     await expectCode(placeBet(db, race.id, { bettorName: "  jose   DUPONT ", driverId: B!.id, amount: 100 }), "DUPLICATE_BET");
-    await placeBet(db, race.id, { bettorName: "Max", fivemId: "license:abc", driverId: A!.id, amount: 100 });
-    await expectCode(placeBet(db, race.id, { bettorName: "Autre nom", fivemId: "LICENSE:ABC", driverId: B!.id, amount: 100 }), "DUPLICATE_BET");
+    await placeBet(db, race.id, { bettorName: "Max", phone: "555-0123", driverId: A!.id, amount: 100 });
+    await expectCode(placeBet(db, race.id, { bettorName: "Autre nom", phone: "555 01 23", driverId: B!.id, amount: 100 }), "DUPLICATE_BET");
     // Même nom RP sans identifiant après un pari avec identifiant : refusé
     await expectCode(placeBet(db, race.id, { bettorName: "max", driverId: B!.id, amount: 100 }), "DUPLICATE_BET");
     // Contrainte SQL directe
@@ -165,7 +166,7 @@ describe("Test 5 — un seul pari par joueur et par course", () => {
         driverId: B!.id,
         bettorName: "x",
         bettorNameKey: "x",
-        identityKey: "fivem:license:abc",
+        identityKey: "tel:5550123",
         amount: 1,
       }),
     ).rejects.toThrow();
@@ -227,6 +228,46 @@ describe("Test 6 — pari verrouillé", () => {
     await addDriver(db, draft.id, { name: "X" });
     await deleteRace(db, draft.id);
     expect(await db.select().from(races).where(eq(races.id, draft.id))).toHaveLength(0);
+  });
+
+  it("course terminée : suppression complète ; refusée tant que des gains ou remboursements sont dus", async () => {
+    const { race, drivers: [A, B] } = await setupOpenRace(db);
+    await placeBet(db, race.id, { bettorName: "G", driverId: A!.id, amount: 1000 });
+    await placeBet(db, race.id, { bettorName: "P", driverId: B!.id, amount: 1000 });
+    await closeBets(db, race.id);
+    await recordResult(db, race.id, { winnerDriverId: A!.id });
+    await expectCode(deleteRace(db, race.id), "RACE_STATE"); // gain à payer
+    const d = await getRaceDetail(db, race.id);
+    await paySettlement(db, d.bets.find((b) => b.settlement)!.settlement!.id);
+    await deleteRace(db, race.id);
+    expect(await db.select().from(races).where(eq(races.id, race.id))).toHaveLength(0);
+    expect(await db.select().from(bets).where(eq(bets.raceId, race.id))).toHaveLength(0);
+    expect(await db.select().from(settlements).where(eq(settlements.raceId, race.id))).toHaveLength(0);
+    // Les garde-fous sont rétablis après la suppression
+    const other = await setupOpenRace(db, { name: "Autre" });
+    const { bet } = await placeBet(db, other.race.id, { bettorName: "X", driverId: other.drivers[0]!.id, amount: 5 });
+    await dbRejects(db.delete(bets).where(eq(bets.id, bet.id)), /RB_BET_IMMUTABLE/);
+    // Annulée avec remboursements en attente : refusé, puis possible une fois remboursé
+    await cancelRace(db, other.race.id);
+    await expectCode(deleteRace(db, other.race.id), "RACE_STATE");
+    const o = await getRaceDetail(db, other.race.id);
+    await paySettlement(db, o.bets[0]!.settlement!.id);
+    await deleteRace(db, other.race.id);
+    // La fonction SQL refuse aussi une course avec gains dus (appel direct)
+    const third = await setupOpenRace(db, { name: "Trois" });
+    await placeBet(db, third.race.id, { bettorName: "Y", driverId: third.drivers[0]!.id, amount: 5 });
+    await closeBets(db, third.race.id);
+    await recordResult(db, third.race.id, { winnerDriverId: third.drivers[0]!.id });
+    await dbRejects(db.execute(sql`select racebet_purge_race(${third.race.id}::uuid)`), /RB_RACE_NOT_DELETABLE/);
+  });
+
+  it("registre : un pilote retiré n'apparaît plus, réapparaît s'il est recréé", async () => {
+    await setupOpenRace(db, { name: "R", drivers: ["Alpha", "Bravo"] });
+    await hideKnownDriver(db, "alpha");
+    expect((await listKnownDrivers(db)).map((k) => k.nameKey)).toEqual(["bravo"]);
+    const r2 = await createRace(db, { name: "R2", commissionPercent: "5" });
+    await addDriver(db, r2.id, { name: "Alpha" });
+    expect((await listKnownDrivers(db)).map((k) => k.nameKey)).toEqual(["alpha", "bravo"]);
   });
 });
 
@@ -324,7 +365,7 @@ describe("Test 9 — arrondis en base", () => {
 describe("Tests 10 & 12 — persistance et sauvegarde", () => {
   it("export complet relu et restauré à l'identique dans une base vierge", async () => {
     const { race, drivers: [A, B] } = await setupOpenRace(db);
-    await placeBet(db, race.id, { bettorName: "S1", fivemId: "license:1", driverId: A!.id, amount: 7000 });
+    await placeBet(db, race.id, { bettorName: "S1", phone: "555-0001", driverId: A!.id, amount: 7000 });
     await placeBet(db, race.id, { bettorName: "S2", driverId: B!.id, amount: 3000 });
     await closeBets(db, race.id);
     await recordResult(db, race.id, { winnerDriverId: A!.id });

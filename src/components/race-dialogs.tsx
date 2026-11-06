@@ -6,7 +6,7 @@ import { CalendarClock, Flag, Lock, Search, Trash2, Users, Wallet } from "lucide
 import { api, refreshAll } from "@/lib/api-client";
 import type { RaceCardDTO, RaceDTO } from "@/lib/dto";
 import { RACE_STATUSES, type RaceStatus } from "@/lib/constants";
-import { RACE_STATUS_LABEL } from "@/lib/status";
+import { RACE_STATUS_LABEL, canDeleteRace } from "@/lib/status";
 import { formatDateTime, formatMoney, formatPercentBps } from "@/lib/format";
 import { parseCommissionPercent } from "@/lib/finance";
 import { Button, EmptyState, Field, ICON, Input, Modal, Select, StatusBadge, SummaryRow, Textarea, cx } from "./ui";
@@ -135,7 +135,14 @@ export function RaceManagerDialog({
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<RaceStatus | "">("");
   const [toDelete, setToDelete] = useState<RaceCardDTO | null>(null);
+  const [confirmText, setConfirmText] = useState("");
   const [busy, setBusy] = useState(false);
+  // Une course avec des paris exige de taper SUPPRIMER (perte de l'historique comptable).
+  const needsTyping = (toDelete?.betCount ?? 0) > 0;
+  const askDelete = (r: RaceCardDTO) => {
+    setConfirmText("");
+    setToDelete(r);
+  };
 
   const filtered = useMemo(() => {
     const n = q.trim().toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "");
@@ -207,13 +214,21 @@ export function RaceManagerDialog({
                       <div className="col-span-2 flex justify-between text-mute">Commission <span className="text-ink tabular-nums">{formatPercentBps(r.commissionBps)}</span></div>
                     </dl>
                   </button>
-                  {r.betCount === 0 && (r.status === "draft" || (r.status === "cancelled" && !r.closedAt)) && (
-                    <div className="mt-3 border-t border-white/5 pt-3">
-                      <Button size="sm" variant="ghost" className="text-[#ff8a95]" icon={<Trash2 className="h-3.5 w-3.5" {...ICON} />} onClick={() => setToDelete(r)}>
+                  <div className="mt-3 border-t border-white/5 pt-3">
+                    {canDeleteRace(r.status, r.betCount) ? (
+                      <Button size="sm" variant="ghost" className="text-[#ff8a95]" icon={<Trash2 className="h-3.5 w-3.5" {...ICON} />} onClick={() => askDelete(r)}>
                         Supprimer
                       </Button>
-                    </div>
-                  )}
+                    ) : (
+                      <p className="py-1 text-xs text-dim">
+                        {r.status === "result"
+                          ? "Suppression possible une fois tous les gains payés."
+                          : r.status === "cancelled"
+                            ? "Suppression possible une fois tous les remboursements faits."
+                            : "Course en cours : terminez-la ou annulez-la pour pouvoir la supprimer."}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -227,15 +242,36 @@ export function RaceManagerDialog({
         size="sm"
         tone="danger"
         title="Supprimer la course ?"
-        description="Possible uniquement pour une course sans aucun pari. Cette suppression est définitive."
+        description="La course, ses pilotes, ses paris et ses règlements seront effacés définitivement. Elle disparaîtra aussi de la comptabilité globale."
         footer={
           <>
             <Button variant="ghost" onClick={() => setToDelete(null)} disabled={busy}>Annuler</Button>
-            <Button variant="danger" loading={busy} onClick={remove}>Supprimer définitivement</Button>
+            <Button variant="danger" loading={busy} disabled={needsTyping && confirmText.trim().toUpperCase() !== "SUPPRIMER"} onClick={remove}>
+              Supprimer définitivement
+            </Button>
           </>
         }
       >
-        <p className="font-display text-base">{toDelete?.name}</p>
+        {toDelete && (
+          <div className="space-y-4">
+            <dl>
+              <SummaryRow label="Course" value={toDelete.name} />
+              <SummaryRow label="Statut" value={RACE_STATUS_LABEL[toDelete.status]} />
+              <SummaryRow label="Paris" value={toDelete.betCount} />
+              <SummaryRow label="Total des mises" value={formatMoney(toDelete.totalStakes)} />
+            </dl>
+            {needsTyping && (
+              <>
+                <p className="text-sm text-mute">
+                  Un résumé de la course (nom, nombre de paris, total des mises) reste dans le journal des opérations.
+                </p>
+                <Field label="Tapez SUPPRIMER pour confirmer" htmlFor="confirm-delete">
+                  <Input id="confirm-delete" autoComplete="off" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="SUPPRIMER" />
+                </Field>
+              </>
+            )}
+          </div>
+        )}
       </Modal>
     </>
   );

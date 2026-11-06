@@ -1,7 +1,8 @@
-import { and, count, eq, sum } from "drizzle-orm";
+import { and, count, eq, sql, sum } from "drizzle-orm";
 import type { Db, Tx } from "../db/client";
 import {
   bets,
+  driverRegistryHidden,
   drivers,
   raceClosures,
   raceResults,
@@ -14,7 +15,8 @@ import { AppError, mapDbError } from "../errors";
 import { logOperation } from "../log";
 import { parseCommissionPercent, planCancellation, planResult, toNumber } from "@/lib/finance";
 import { parisLocalToDate } from "@/lib/format";
-import { bettorIdentityKey, cleanDisplayName, normalizeFivemId, normalizeName } from "@/lib/identity";
+import { canDeleteRace } from "@/lib/status";
+import { bettorIdentityKey, cleanDisplayName, cleanPhone, normalizeName, normalizePhone } from "@/lib/identity";
 import {
   createRaceSchema,
   driverSchema,
@@ -77,22 +79,45 @@ export async function createRace(db: Db, input: CreateRaceInput) {
   });
 }
 
+/**
+ * Suppression définitive d'une course et de toutes ses données (pilotes, paris, règlements…).
+ * Refusée tant qu'une somme est due (voir canDeleteRace) ; la règle est aussi vérifiée en base
+ * par racebet_purge_race. Un résumé est conservé dans le journal des opérations.
+ */
 export async function deleteRace(db: Db, raceId: string) {
   assertId(raceId, "Course");
   return tx(db, async (t) => {
     const race = await lockRace(t, raceId, "update");
-    const [{ n }] = (await t.select({ n: count() }).from(bets).where(eq(bets.raceId, raceId))) as [{ n: number }];
-    if (n > 0) throw new AppError("HAS_BETS", "Cette course contient des paris : elle ne peut pas être supprimée.");
-    const [closure] = await t.select({ id: raceClosures.raceId }).from(raceClosures).where(eq(raceClosures.raceId, raceId));
-    if (!["draft", "cancelled"].includes(race.status) || closure) {
-      throw new AppError(
-        "RACE_STATE",
-        "Seule une course en préparation (ou annulée avant clôture) sans aucun pari peut être supprimée. Sinon, annulez-la : elle reste dans l'historique.",
-      );
+    const [agg] = (await t
+      .select({ n: count(), total: sum(bets.amount).mapWith(Number) })
+      .from(bets)
+      .where(eq(bets.raceId, raceId))) as [{ n: number; total: number | null }];
+    if (!canDeleteRace(race.status, agg.n)) {
+      if (race.status === "result") throw new AppError("RACE_STATE", "Des gains restent à payer : marquez tous les paiements avant de supprimer cette course.");
+      if (race.status === "cancelled") throw new AppError("RACE_STATE", "Des remboursements restent à effectuer : terminez-les avant de supprimer cette course.");
+      throw new AppError("HAS_BETS", "Course en cours avec des paris : annulez-la (remboursements) ou terminez-la avant de la supprimer.");
     }
-    await t.delete(races).where(eq(races.id, raceId));
-    await logOperation(t, "race_deleted", raceId, { name: race.name });
+    const [result] = await t.select().from(raceResults).where(eq(raceResults.raceId, raceId));
+    await t.execute(sql`select racebet_purge_race(${raceId}::uuid)`);
+    await logOperation(t, "race_deleted", raceId, {
+      name: race.name,
+      status: race.status,
+      bets: agg.n,
+      totalStakes: agg.total ?? 0,
+      organizerKept: result?.organizerKept ?? null,
+    });
     return { deleted: true };
+  });
+}
+
+/** Retire un pilote du registre « déjà enregistrés ». Les courses passées ne sont pas modifiées. */
+export async function hideKnownDriver(db: Db, nameKeyInput: string) {
+  const nameKey = normalizeName(String(nameKeyInput ?? ""));
+  if (!nameKey) throw new AppError("VALIDATION", "Pilote invalide.");
+  return tx(db, async (t) => {
+    await t.insert(driverRegistryHidden).values({ nameKey }).onConflictDoNothing();
+    await logOperation(t, "driver_hidden", null, { nameKey });
+    return { hidden: true };
   });
 }
 
@@ -270,6 +295,8 @@ export async function addDriver(db: Db, raceId: string, input: DriverInput) {
       .insert(drivers)
       .values({ raceId, name, nameKey: normalizeName(name), number: data.number })
       .returning();
+    // Un pilote retiré du registre puis recréé y réapparaît.
+    await t.delete(driverRegistryHidden).where(eq(driverRegistryHidden.nameKey, driver!.nameKey));
     await logOperation(t, "driver_added", raceId, { driverId: driver!.id, name, number: data.number });
     return driver!;
   });
@@ -318,9 +345,9 @@ export async function placeBet(db: Db, raceId: string, input: PlaceBetInput) {
   assertId(raceId, "Course");
   const data = parse(placeBetSchema, input);
   const bettorName = cleanDisplayName(data.bettorName);
-  const fivemId = data.fivemId ? data.fivemId.replace(/\s+/g, "") : null;
+  const phone = cleanPhone(data.phone);
   const nameKey = normalizeName(bettorName);
-  const identityKey = bettorIdentityKey(bettorName, fivemId);
+  const identityKey = bettorIdentityKey(bettorName, phone);
 
   // Idempotence : un même requestId renvoie le pari déjà enregistré (double clic, nouvelle tentative réseau).
   if (data.requestId) {
@@ -341,13 +368,13 @@ export async function placeBet(db: Db, raceId: string, input: PlaceBetInput) {
         .where(and(eq(drivers.id, data.driverId), eq(drivers.raceId, raceId)));
       if (!driver) throw new AppError("VALIDATION", "Ce pilote ne participe pas à cette course.");
 
-      // Un même nom RP ne peut pas contourner l'unicité en ajoutant/omettant un identifiant FiveM.
+      // Un même nom RP ne peut pas contourner l'unicité en ajoutant/omettant un numéro de téléphone.
       const sameName = await t
-        .select({ fivemId: bets.fivemId })
+        .select({ phone: bets.phone })
         .from(bets)
         .where(and(eq(bets.raceId, raceId), eq(bets.bettorNameKey, nameKey)));
-      const normalizedFivem = normalizeFivemId(fivemId);
-      if (sameName.some((b) => !normalizedFivem || !b.fivemId)) {
+      const normalizedPhone = normalizePhone(phone);
+      if (sameName.some((b) => !normalizedPhone || !normalizePhone(b.phone))) {
         throw new AppError(
           "DUPLICATE_BET",
           "Un parieur portant ce nom RP a déjà parié sur cette course. Un seul pari par joueur et par course.",
@@ -361,7 +388,7 @@ export async function placeBet(db: Db, raceId: string, input: PlaceBetInput) {
           driverId: driver.id,
           bettorName,
           bettorNameKey: nameKey,
-          fivemId,
+          phone,
           identityKey,
           amount: data.amount,
           requestId: data.requestId ?? null,
@@ -370,7 +397,7 @@ export async function placeBet(db: Db, raceId: string, input: PlaceBetInput) {
       await logOperation(t, "bet_placed", raceId, {
         betId: bet!.id,
         bettorName,
-        fivemId,
+        phone,
         driverId: driver.id,
         driverName: driver.name,
         amount: data.amount,

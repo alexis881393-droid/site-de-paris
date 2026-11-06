@@ -49,7 +49,7 @@ export type KnownDriverDTO = {
 export type BetRowDTO = {
   id: string;
   bettorName: string;
-  fivemId: string | null;
+  phone: string | null;
   driverId: string;
   driverName: string;
   driverNumber: number | null;

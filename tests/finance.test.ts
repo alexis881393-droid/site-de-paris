@@ -178,9 +178,10 @@ describe("Saisies et normalisation", () => {
   it("identité du parieur insensible à la casse, aux accents et aux espaces", () => {
     expect(normalizeName("  José   DUPONT ")).toBe("jose dupont");
     expect(bettorIdentityKey("José Dupont")).toBe(bettorIdentityKey("jose  dupont"));
-    expect(bettorIdentityKey("X", " License:ABC ")).toBe("fivem:license:abc");
-    // Préfixes distincts : un nom RP ne peut pas imiter un identifiant FiveM.
-    expect(bettorIdentityKey("license:abc")).not.toBe(bettorIdentityKey("Y", "license:abc"));
+    expect(bettorIdentityKey("X", " 06 12-34.56 78 ")).toBe("tel:0612345678");
+    expect(bettorIdentityKey("X", "+33 6 12")).toBe("tel:+33612");
+    // Préfixes distincts : un nom RP ne peut pas imiter un numéro de téléphone.
+    expect(bettorIdentityKey("5550123")).not.toBe(bettorIdentityKey("Y", "5550123"));
   });
 
   it("formats français et fuseau de Paris", () => {

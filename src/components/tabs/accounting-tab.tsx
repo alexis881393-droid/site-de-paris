@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CloudOff, Download, FileJson, FileSpreadsheet, Search, ShieldCheck } from "lucide-react";
+import { CloudOff, FileSpreadsheet, Search, ShieldCheck } from "lucide-react";
 import { useAccounting } from "@/lib/api-client";
 import type { AccountingRowDTO, GlobalAccountingDTO, RaceDetailDTO } from "@/lib/dto";
 import type { RaceAccounting } from "@/lib/accounting";
@@ -293,7 +293,6 @@ function ExportButtons() {
     { href: "/api/export/csv?type=courses", label: "CSV courses", icon: FileSpreadsheet, v: "ghost" as const },
     { href: "/api/export/csv?type=paris", label: "CSV paris", icon: FileSpreadsheet, v: "ghost" as const },
     { href: "/api/export/csv?type=reglements", label: "CSV règlements", icon: FileSpreadsheet, v: "ghost" as const },
-    { href: "/api/export/json", label: "Sauvegarde complète", icon: FileJson, v: "outline" as const },
   ];
   return (
     <>
@@ -325,15 +324,11 @@ function BackupPanel({ data }: { data: GlobalAccountingDTO }) {
                 ? b.lastBackupAt
                   ? `Dernière sauvegarde réussie : ${formatDateTime(b.lastBackupAt)} (quotidienne, Cloudflare R2).`
                   : "Aucune sauvegarde réussie enregistrée pour l'instant. La tâche s'exécute une fois par jour."
-                : `Variables manquantes : ${b.missing.join(", ")}. L'export manuel reste disponible.`}
+                : `Variables manquantes : ${b.missing.join(", ")}.`}
             </p>
             {b.lastFailureAt && <p className="mt-1 text-sm text-[#ff8a95]">Échec le {formatDateTime(b.lastFailureAt)} : {b.lastFailureMessage}</p>}
           </div>
         </div>
-        <a href="/api/export/json" download className={buttonClasses("outline", "md")}>
-          <Download className="h-4 w-4" {...ICON} />
-          Télécharger une sauvegarde
-        </a>
       </div>
     </Plate>
   );

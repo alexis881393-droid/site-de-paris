@@ -53,12 +53,12 @@ export async function buildCsv(db: Db, kind: CsvKind): Promise<string> {
 
   if (kind === "paris") {
     return toCsv(
-      ["Course", "Statut course", "Parieur", "Identifiant FiveM", "Pilote", "Mise", "Enregistré le", "Type règlement", "Montant dû", "Statut règlement", "Versé le"],
+      ["Course", "Statut course", "Parieur", "Téléphone", "Pilote", "Mise", "Enregistré le", "Type règlement", "Montant dû", "Statut règlement", "Versé le"],
       betRows.map((b) => {
         const s = settlementByBet.get(b.id);
         const race = raceById.get(b.raceId)!;
         return [
-          race.name, RACE_STATUS_LABEL[race.status], b.bettorName, b.fivemId ?? "", driverById.get(b.driverId)?.name ?? "",
+          race.name, RACE_STATUS_LABEL[race.status], b.bettorName, b.phone ?? "", driverById.get(b.driverId)?.name ?? "",
           b.amount, formatDateTime(b.createdAt), s ? (s.kind === "payout" ? "Gain" : "Remboursement") : "",
           s?.amountDue ?? "", s ? (s.status === "paid" ? "Versé" : "À verser") : "", s?.paidAt ? formatDateTime(s.paidAt) : "",
         ];
@@ -67,11 +67,11 @@ export async function buildCsv(db: Db, kind: CsvKind): Promise<string> {
   }
 
   return toCsv(
-    ["Course", "Parieur", "Identifiant FiveM", "Type", "Montant dû", "Montant versé", "Statut", "Créé le", "Versé le"],
+    ["Course", "Parieur", "Téléphone", "Type", "Montant dû", "Montant versé", "Statut", "Créé le", "Versé le"],
     settlementRows.map((s) => {
       const b = betById.get(s.betId)!;
       return [
-        raceById.get(s.raceId)?.name ?? "", b.bettorName, b.fivemId ?? "", s.kind === "payout" ? "Gain" : "Remboursement",
+        raceById.get(s.raceId)?.name ?? "", b.bettorName, b.phone ?? "", s.kind === "payout" ? "Gain" : "Remboursement",
         s.amountDue, s.amountPaid, s.status === "paid" ? "Versé" : "À verser", formatDateTime(s.createdAt),
         s.paidAt ? formatDateTime(s.paidAt) : "",
       ];

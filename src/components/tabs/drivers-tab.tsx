@@ -278,6 +278,16 @@ function AddDriverForm({ raceId, current }: { raceId: string; current: DriverRow
     }
   }
 
+  async function removeKnown(k: KnownDriverDTO) {
+    try {
+      await api(`/api/drivers?key=${encodeURIComponent(k.nameKey)}`, { method: "DELETE" });
+      toast.success("Pilote retiré de la liste", { description: `${k.name} — ses courses passées restent inchangées.` });
+      await refreshAll();
+    } catch (err) {
+      toast.error("Retrait impossible", { description: (err as Error).message });
+    }
+  }
+
   async function pickKnown(key: string) {
     const k = available.find((x) => x.nameKey === key);
     if (!k) return;
@@ -296,7 +306,7 @@ function AddDriverForm({ raceId, current }: { raceId: string; current: DriverRow
               htmlFor="known-driver"
               hint={available.length ? `${available.length} pilote${available.length > 1 ? "s" : ""} disponible${available.length > 1 ? "s" : ""}. Tapez le début du nom, puis Entrée ou clic pour l'ajouter.` : "Tous les pilotes enregistrés sont déjà dans cette course."}
             >
-              <KnownDriverSearch options={available} disabled={busy || available.length === 0} onPick={(k) => pickKnown(k.nameKey)} />
+              <KnownDriverSearch options={available} disabled={busy || available.length === 0} onPick={(k) => pickKnown(k.nameKey)} onRemove={removeKnown} />
             </Field>
           </div>
         </div>
@@ -321,8 +331,19 @@ function AddDriverForm({ raceId, current }: { raceId: string; current: DriverRow
 }
 
 /** Champ de recherche avec suggestions : filtre sur le début du nom (ou d'un de ses mots), accents et casse ignorés. */
-function KnownDriverSearch({ options, disabled, onPick }: { options: KnownDriverDTO[]; disabled: boolean; onPick: (k: KnownDriverDTO) => void }) {
+function KnownDriverSearch({
+  options,
+  disabled,
+  onPick,
+  onRemove,
+}: {
+  options: KnownDriverDTO[];
+  disabled: boolean;
+  onPick: (k: KnownDriverDTO) => void;
+  onRemove: (k: KnownDriverDTO) => Promise<void>;
+}) {
   const [query, setQuery] = useState("");
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
 
@@ -407,12 +428,34 @@ function KnownDriverSearch({ options, disabled, onPick }: { options: KnownDriver
                     aria-selected={i === active}
                     onMouseEnter={() => setActive(i)}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => choose(k)}
+                    onClick={() => confirmKey !== k.nameKey && choose(k)}
                     className={cx("flex cursor-pointer items-center gap-3 px-3 py-2 text-sm", i === active ? "bg-flame/15 text-ink" : "text-ink/90")}
                   >
                     <span className="w-10 font-display font-semibold text-mute tabular-nums">{k.number != null ? `#${k.number}` : "—"}</span>
                     <span className="min-w-0 flex-1 truncate font-medium">{k.name}</span>
-                    <span className="text-xs text-dim">{k.races} course{k.races > 1 ? "s" : ""}</span>
+                    {confirmKey === k.nameKey ? (
+                      <span className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <span className="mr-1 text-xs text-[#ff8a95]">Retirer de la liste ?</span>
+                        <Button size="sm" variant="danger" className="h-7" onClick={async () => { await onRemove(k); setConfirmKey(null); }}>Oui</Button>
+                        <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfirmKey(null)}>Non</Button>
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-xs text-dim">{k.races} course{k.races > 1 ? "s" : ""}</span>
+                        <button
+                          type="button"
+                          aria-label={`Retirer ${k.name} de la liste`}
+                          title="Retirer de la liste des pilotes enregistrés"
+                          className="chamfer-sm p-1 text-dim transition-colors hover:bg-stop/15 hover:text-[#ff8a95]"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmKey(k.nameKey);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" {...ICON} />
+                        </button>
+                      </>
+                    )}
                   </li>
                 ))
               )}

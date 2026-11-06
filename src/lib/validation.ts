@@ -81,7 +81,10 @@ export const amountSchema = z
 
 export const placeBetSchema = z.object({
   bettorName: trimmed(1, 60, "Nom RP du parieur"),
-  fivemId: optionalText(80, "Identifiant FiveM"),
+  phone: optionalText(30, "Numéro de téléphone").refine(
+    (v) => v === null || /^\+?[0-9][0-9 .\-()]{0,28}$/.test(v),
+    "Numéro de téléphone invalide : chiffres, espaces, +, - ou points uniquement.",
+  ),
   driverId: z.uuid("Pilote invalide"),
   amount: amountSchema,
   requestId: z.uuid().optional(),

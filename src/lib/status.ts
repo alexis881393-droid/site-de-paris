@@ -37,3 +37,25 @@ export const PAYMENT_LABEL: Record<PaymentState, string> = {
   to_refund: "À rembourser",
   refunded: "Remboursé",
 };
+
+/**
+ * Une course peut être supprimée définitivement si aucune somme n'est encore due :
+ * - préparation, paiements terminés, remboursements terminés : oui ;
+ * - paris ouverts / clôturés / annulée : seulement sans aucun pari ;
+ * - résultats enregistrés (gains à payer) : non.
+ * (Annulée avec paris = remboursements en attente, sinon elle serait "refunded".)
+ */
+export function canDeleteRace(status: RaceStatus, betCount: number): boolean {
+  switch (status) {
+    case "draft":
+    case "paid":
+    case "refunded":
+      return true;
+    case "open":
+    case "closed":
+    case "cancelled":
+      return betCount === 0;
+    case "result":
+      return false;
+  }
+}

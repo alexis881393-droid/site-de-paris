@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, sql, sum } from "drizzle-orm";
 import type { Db } from "../db/client";
-import { bets, drivers, operationLog, raceClosures, raceResults, races, settlements, type Race } from "../db/schema";
+import { bets, driverRegistryHidden, drivers, operationLog, raceClosures, raceResults, races, settlements, type Race } from "../db/schema";
 import { AppError } from "../errors";
 import { computeGlobalAccounting, computeRaceAccounting, type RaceAccountingInput } from "@/lib/accounting";
 import { computeCommission, computeOddsCents } from "@/lib/finance";
@@ -79,12 +79,17 @@ export async function listRaces(db: Db, opts: { q?: string; status?: RaceStatus 
  * dédoublonné par nom normalisé : nom et numéro de la participation la plus récente.
  */
 export async function listKnownDrivers(db: Db): Promise<KnownDriverDTO[]> {
-  const rows = await db
-    .select({ name: drivers.name, nameKey: drivers.nameKey, number: drivers.number, createdAt: drivers.createdAt })
-    .from(drivers)
-    .orderBy(desc(drivers.createdAt));
+  const [rows, hiddenRows] = await Promise.all([
+    db
+      .select({ name: drivers.name, nameKey: drivers.nameKey, number: drivers.number, createdAt: drivers.createdAt })
+      .from(drivers)
+      .orderBy(desc(drivers.createdAt)),
+    db.select({ nameKey: driverRegistryHidden.nameKey }).from(driverRegistryHidden),
+  ]);
+  const hidden = new Set(hiddenRows.map((h) => h.nameKey));
   const map = new Map<string, KnownDriverDTO>();
   for (const r of rows) {
+    if (hidden.has(r.nameKey)) continue;
     const cur = map.get(r.nameKey);
     if (cur) cur.races += 1;
     else map.set(r.nameKey, { name: r.name, nameKey: r.nameKey, number: r.number, races: 1, lastUsedAt: r.createdAt.toISOString() });
@@ -170,7 +175,7 @@ export async function getRaceDetail(db: Db, raceId: string): Promise<RaceDetailD
     return {
       id: b.id,
       bettorName: b.bettorName,
-      fivemId: b.fivemId,
+      phone: b.phone,
       driverId: b.driverId,
       driverName: d.name,
       driverNumber: d.number,

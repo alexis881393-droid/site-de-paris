@@ -26,7 +26,13 @@ Panneau de contrôle pour la **comptabilité des paris fictifs** sur les courses
 
 ## 1. Fonctionnalités
 
-**En-tête** : logo, sélecteur de course active, statut, bouton « Nouvelle course », historique de toutes les courses (recherche, filtre par statut, suppression d'une course sans pari).
+**En-tête** : logo, sélecteur de course active, statut, bouton « Nouvelle course », historique de toutes les courses (recherche, filtre par statut, suppression).
+
+**Suppression d'une course** (Historique → Supprimer) : possible pour une course en préparation, terminée (paiements ou remboursements terminés) ou sans aucun pari. Refusée tant que des gains ou remboursements sont dus (contrôlé aussi en base par `racebet_purge_race`). Pour une course avec des paris, il faut taper `SUPPRIMER`. La course disparaît de la comptabilité ; un résumé reste dans le journal des opérations.
+
+**Pilotes déjà enregistrés** : en préparation, un champ de recherche propose les pilotes des courses précédentes (filtre au fil de la frappe). L'icône corbeille retire un pilote de cette liste sans modifier les courses passées ; il y réapparaît s'il est recréé.
+
+**Parieurs** : nom RP obligatoire, numéro de téléphone facultatif (identifie le joueur).
 
 **Trois onglets** (raccourcis clavier `1`, `2`, `3` ; `N` = nouvelle course, `H` = historique) :
 
@@ -60,7 +66,7 @@ Code : [`src/lib/finance.ts`](src/lib/finance.ts) (100 % entiers `BigInt`, aucun
 | **Aucun pari sur le vainqueur** | L'organisateur conserve 100 % de la cagnotte. La commission est absorbée (jamais comptée deux fois). |
 | **Cote < ×1** | Normal : si tout le monde a parié sur le vainqueur, chacun récupère moins que sa mise. |
 | **Annulation** | Possible tant qu'aucun résultat officiel n'est enregistré (même après clôture). Remboursement intégral, commission 0 $. |
-| **Un pari par joueur et par course** | Clé d'identité `fivem:<identifiant>` sinon `name:<nom normalisé>` (casse, accents et espaces ignorés). Contrainte d'unicité PostgreSQL. Un même nom RP ne peut pas contourner la règle en ajoutant ou omettant un identifiant FiveM. |
+| **Un pari par joueur et par course** | Clé d'identité `tel:<chiffres du numéro de téléphone>` sinon `name:<nom normalisé>` (casse, accents, espaces et séparateurs du numéro ignorés). Contrainte d'unicité PostgreSQL. Un même nom RP ne peut pas contourner la règle en ajoutant ou omettant un numéro. |
 | **Paris immuables** | Aucune route de modification/suppression (HTTP 405) **et** trigger PostgreSQL qui refuse tout `UPDATE` / `DELETE` / `TRUNCATE`. |
 | **Paiements idempotents** | Un règlement ne passe qu'une fois de « à verser » à « versé » (verrou de ligne + trigger). Un double clic ne compte rien deux fois. |
 
@@ -197,7 +203,7 @@ vercel --prod
 
 ## 8. Sauvegardes automatiques (Cloudflare R2)
 
-Tant que les 5 variables `CRON_SECRET` + `R2_*` ne sont pas renseignées, l'onglet Comptabilité affiche **« Sauvegardes automatiques non configurées »** et aucune sauvegarde automatique n'a lieu. L'export manuel reste disponible.
+Tant que les 5 variables `CRON_SECRET` + `R2_*` ne sont pas renseignées, l'onglet Comptabilité affiche **« Sauvegardes automatiques non configurées »** et aucune sauvegarde automatique n'a lieu. La sauvegarde reste possible depuis votre PC : `npm run backup:local`.
 
 ### Mise en place
 
@@ -227,7 +233,6 @@ Tant que les 5 variables `CRON_SECRET` + `R2_*` ne sont pas renseignées, l'ongl
 - **CSV courses** : comptabilité par course.
 - **CSV paris** : tous les paris avec règlement associé.
 - **CSV règlements** : gains et remboursements.
-- **Sauvegarde complète** (JSON) : courses, pilotes, paris, clôtures, résultats, règlements et journal ; format versionné (`formatVersion: 1`), date d'export, compteurs et somme de contrôle SHA-256.
 
 Les CSV utilisent le séparateur `;` et l'encodage UTF-8 avec BOM (ouverture directe dans Excel en français).
 
@@ -269,7 +274,7 @@ Les tests métier tournent sur un **vrai PostgreSQL** embarqué (PGlite) avec le
 | 2 Aucun pari sur le vainqueur | `finance.test.ts`, `integration.test.ts` |
 | 3 Tous sur le vainqueur (×0,85) | `finance.test.ts`, `integration.test.ts` |
 | 4 Annulation (250 000 remboursés, commission 0) | `finance.test.ts`, `integration.test.ts` |
-| 5 Un pari par joueur (casse, accents, identifiant FiveM, SQL direct) | `integration.test.ts` |
+| 5 Un pari par joueur (casse, accents, numéro de téléphone, SQL direct) | `integration.test.ts` |
 | 6 Pari verrouillé (UPDATE/DELETE/TRUNCATE refusés en base) | `integration.test.ts` |
 | 7 Courses indépendantes | `integration.test.ts` |
 | 8 Concurrence (paris simultanés, double clic, clôture concurrente) | `integration.test.ts` |
@@ -305,7 +310,7 @@ Vérifié manuellement sur le serveur de production local : `PUT` / `PATCH` / `D
 |---|---|---|
 | Tout le site | Neon (`DATABASE_URL`) | Écran « Base de données non configurée » tant qu'elle manque. |
 | Sauvegarde quotidienne | Vercel Cron + Cloudflare R2 + `CRON_SECRET` | **Non configurée** (affiché dans Comptabilité). |
-| Exports CSV / JSON | Neon uniquement | Disponibles dès que la base est configurée. |
+| Exports CSV | Neon uniquement | Disponibles dès que la base est configurée (le téléchargement de sauvegarde JSON depuis le site a été retiré). |
 | Polices (Chakra Petch, Barlow) | Google Fonts, téléchargées au build | Auto-hébergées par Next.js. |
 
 ### Informations à fournir pour la mise en ligne

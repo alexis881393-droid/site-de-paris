@@ -98,8 +98,9 @@ export const bets = pgTable(
     driverId: uuid("driver_id").notNull(),
     bettorName: text("bettor_name").notNull(),
     bettorNameKey: text("bettor_name_key").notNull(),
-    fivemId: text("fivem_id"),
-    /** Clé d'identité unique par course : "fivem:<id>" ou "name:<nom normalisé>". */
+    /** Numéro de téléphone RP du parieur (colonne historique "fivem_id"). */
+    phone: text("fivem_id"),
+    /** Clé d'identité unique par course : "tel:<chiffres>" ou "name:<nom normalisé>" ("fivem:" = ancien format). */
     identityKey: text("identity_key").notNull(),
     amount: money("amount").notNull(),
     /** Identifiant de requête client : rend l'enregistrement idempotent (double clic). */
@@ -114,11 +115,17 @@ export const bets = pgTable(
       foreignColumns: [drivers.id, drivers.raceId],
     }).onDelete("restrict"),
     check("bets_amount_positive", sql`${t.amount} > 0 and ${t.amount} <= 1000000000000`),
-    check("bets_identity_prefix", sql`${t.identityKey} ~ '^(fivem|name):.+'`),
+    check("bets_identity_prefix", sql`${t.identityKey} ~ '^(fivem|tel|name):.+'`),
     index("bets_race_idx").on(t.raceId),
     index("bets_driver_idx").on(t.driverId),
   ],
 );
+
+/** Pilotes retirés du registre (liste « déjà enregistrés ») : n'affecte pas les courses passées. */
+export const driverRegistryHidden = pgTable("driver_registry_hidden", {
+  nameKey: text("name_key").primaryKey(),
+  hiddenAt: ts("hidden_at").notNull().defaultNow(),
+});
 
 /** Instantané figé lors de la clôture des paris. */
 export const raceClosures = pgTable(
@@ -205,6 +212,7 @@ export const OPERATION_TYPES = [
   "driver_added",
   "driver_updated",
   "driver_removed",
+  "driver_hidden",
   "bets_opened",
   "bet_placed",
   "bets_closed",
