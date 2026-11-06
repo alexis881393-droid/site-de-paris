@@ -52,6 +52,36 @@
   --chamfer: 10px;
 }
 
+/* ---------------------------------------------------------------------
+   Compatibilité navigateurs anciens (ex. navigateur intégré FiveM) :
+   Tailwind v4 place ses variables dans des blocs @layer, ignorés avant
+   Chromium 99. Ces valeurs hors @layer garantissent au minimum un fond
+   sombre et un texte lisible (jamais d'écran noir).
+   --------------------------------------------------------------------- */
+:root {
+  --color-void: #08070a;
+  --color-pit: #0f0e12;
+  --color-plate: #141318;
+  --color-plate-2: #1b1a20;
+  --color-line: #26262b;
+  --color-line-strong: #34343a;
+  --color-ink: #f5f5f5;
+  --color-mute: #929298;
+  --color-dim: #5d5d63;
+  --color-flame: #ff6b00;
+  --color-flame-hot: #ff8c00;
+  --color-flame-soft: #ffb15c;
+  --color-go: #3ddc84;
+  --color-stop: #ff3b4e;
+  --color-caution: #ffd23f;
+  --ease-snap: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+html {
+  background-color: #08070a;
+  color: #f5f5f5;
+}
+
 html {
   background: var(--color-void);
   -webkit-text-size-adjust: 100%;
