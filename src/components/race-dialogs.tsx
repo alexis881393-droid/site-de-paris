@@ -164,7 +164,7 @@ export function RaceManagerDialog({
       <Modal open={open} onOpenChange={onOpenChange} size="xl" title="Courses" description={`${races.length} course${races.length > 1 ? "s" : ""} enregistrée${races.length > 1 ? "s" : ""}. L'historique n'est jamais supprimé automatiquement.`}>
         <div className="mb-4 flex flex-col gap-2 sm:flex-row">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" {...ICON} />
+            <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-dim" {...ICON} />
             <Input className="pl-9" placeholder="Rechercher une course…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher une course" />
           </div>
           <Select className="sm:w-60" value={status} onChange={(e) => setStatus(e.target.value as RaceStatus | "")} aria-label="Filtrer par statut">

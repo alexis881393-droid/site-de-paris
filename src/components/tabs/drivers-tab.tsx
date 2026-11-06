@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Check, Flag, Lock, Pencil, Plus, Trash2, Trophy, Unlock, X } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
+import { ArrowDown, ArrowUp, Check, Flag, Lock, Pencil, Plus, Search, Trash2, Trophy, Unlock, X } from "lucide-react";
 import { api, refreshAll, useKnownDrivers } from "@/lib/api-client";
-import type { DriverRowDTO, RaceDetailDTO } from "@/lib/dto";
+import type { DriverRowDTO, KnownDriverDTO, RaceDetailDTO } from "@/lib/dto";
 import { normalizeName } from "@/lib/identity";
 import { computeCommission, planResult } from "@/lib/finance";
 import { formatDateTime, formatMoney, formatOdds, formatPercentBps, formatShare } from "@/lib/format";
-import { Button, EmptyState, Field, ICON, Input, Modal, Plate, SectionTitle, Select, SummaryRow, Tag, cx } from "../ui";
+import { Button, EmptyState, Field, ICON, Input, Modal, Plate, SectionTitle, SummaryRow, Tag, cx } from "../ui";
 
 export function DriversTab({ detail, onGoToBets }: { detail: RaceDetailDTO; onGoToBets: () => void }) {
   const { race, drivers } = detail;
@@ -293,16 +294,9 @@ function AddDriverForm({ raceId, current }: { raceId: string; current: DriverRow
             <Field
               label="Pilote déjà enregistré"
               htmlFor="known-driver"
-              hint={available.length ? `${available.length} pilote${available.length > 1 ? "s" : ""} disponible${available.length > 1 ? "s" : ""} : la sélection l'ajoute directement à la course.` : "Tous les pilotes enregistrés sont déjà dans cette course."}
+              hint={available.length ? `${available.length} pilote${available.length > 1 ? "s" : ""} disponible${available.length > 1 ? "s" : ""}. Tapez le début du nom, puis Entrée ou clic pour l'ajouter.` : "Tous les pilotes enregistrés sont déjà dans cette course."}
             >
-              <Select id="known-driver" value="" disabled={busy || available.length === 0} onChange={(e) => pickKnown(e.target.value)}>
-                <option value="">Choisir un pilote enregistré…</option>
-                {available.map((k) => (
-                  <option key={k.nameKey} value={k.nameKey}>
-                    {k.number != null ? `#${k.number} ` : ""}{k.name} — {k.races} course{k.races > 1 ? "s" : ""}
-                  </option>
-                ))}
-              </Select>
+              <KnownDriverSearch options={available} disabled={busy || available.length === 0} onPick={(k) => pickKnown(k.nameKey)} />
             </Field>
           </div>
         </div>
@@ -323,6 +317,110 @@ function AddDriverForm({ raceId, current }: { raceId: string; current: DriverRow
         </Button>
       </form>
     </Plate>
+  );
+}
+
+/** Champ de recherche avec suggestions : filtre sur le début du nom (ou d'un de ses mots), accents et casse ignorés. */
+function KnownDriverSearch({ options, disabled, onPick }: { options: KnownDriverDTO[]; disabled: boolean; onPick: (k: KnownDriverDTO) => void }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+
+  const results = useMemo(() => {
+    const q = normalizeName(query);
+    if (!q) return options;
+    const starts = options.filter((k) => k.nameKey.startsWith(q));
+    const words = options.filter(
+      (k) => !k.nameKey.startsWith(q) && (k.nameKey.split(/[\s«»"'()-]+/).some((w) => w.startsWith(q)) || String(k.number ?? "") === q),
+    );
+    return [...starts, ...words];
+  }, [options, query]);
+
+  const choose = (k: KnownDriverDTO | undefined) => {
+    if (!k) return;
+    onPick(k);
+    setQuery("");
+    setActive(0);
+    setOpen(false);
+  };
+
+  return (
+    <Popover.Root open={open && !disabled} onOpenChange={setOpen}>
+      <Popover.Anchor asChild>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-flame/80" {...ICON} />
+          <Input
+            id="known-driver"
+            onClick={() => setOpen(true)}
+            className="pl-9"
+            role="combobox"
+            aria-expanded={open}
+            aria-controls="known-driver-list"
+            aria-autocomplete="list"
+            autoComplete="off"
+            disabled={disabled}
+            placeholder="Rechercher un pilote enregistré…"
+            value={query}
+            onFocus={() => setOpen(true)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActive(0);
+              setOpen(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setOpen(true);
+                setActive((i) => Math.min(i + 1, results.length - 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActive((i) => Math.max(i - 1, 0));
+              } else if (e.key === "Enter") {
+                e.preventDefault();
+                if (open) choose(results[active]);
+              } else if (e.key === "Escape") {
+                setOpen(false);
+              }
+            }}
+          />
+        </div>
+      </Popover.Anchor>
+      <Popover.Portal>
+        <Popover.Content
+          align="start"
+          sideOffset={4}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            if ((e.target as HTMLElement).closest?.("#known-driver")) e.preventDefault();
+          }}
+          className="z-40 w-[var(--radix-popover-trigger-width)] animate-rise"
+        >
+          <div className="chamfer-sm bg-flame/50 p-px">
+            <ul id="known-driver-list" role="listbox" className="chamfer-sm max-h-72 overflow-y-auto bg-pit py-1">
+              {results.length === 0 ? (
+                <li className="px-3 py-2.5 text-sm text-mute">Aucun pilote ne commence par « {query.trim()} ». Créez-le ci-dessous.</li>
+              ) : (
+                results.map((k, i) => (
+                  <li
+                    key={k.nameKey}
+                    role="option"
+                    aria-selected={i === active}
+                    onMouseEnter={() => setActive(i)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => choose(k)}
+                    className={cx("flex cursor-pointer items-center gap-3 px-3 py-2 text-sm", i === active ? "bg-flame/15 text-ink" : "text-ink/90")}
+                  >
+                    <span className="w-10 font-display font-semibold text-mute tabular-nums">{k.number != null ? `#${k.number}` : "—"}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium">{k.name}</span>
+                    <span className="text-xs text-dim">{k.races} course{k.races > 1 ? "s" : ""}</span>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 

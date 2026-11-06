@@ -292,7 +292,7 @@ function BetTable({ detail }: { detail: RaceDetailDTO }) {
     <Plate>
       <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" {...ICON} />
+          <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-dim" {...ICON} />
           <Input className="pl-9" placeholder="Rechercher un parieur ou un identifiant…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher un parieur" />
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex">
