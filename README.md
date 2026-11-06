@@ -33,7 +33,7 @@ Panneau de contrôle pour la **comptabilité des paris fictifs** sur les courses
 | `/` | public, sans connexion | Cotes des pilotes en direct et leur évolution (graphique), encart « paris en espèces uniquement ». Aucune donnée de parieur (nom, téléphone, montant). Courses visibles : paris ouverts, clôturés ou résultat connu. |
 | `/admin` | privé, compte obligatoire | Tout le reste : pilotes, paris, comptabilité, associés, et l'onglet **Comptes** (`4`). |
 
-**Comptes de l'espace privé** : chaque administrateur crée son compte (pseudo + mot de passe) avec un **code d'accès à usage unique** (`RB-XXXX-XXXX-XXXX`).
+**Comptes de l'espace privé** : chaque administrateur crée son compte (pseudo + mot de passe) avec un **code d'accès à usage unique** de 6 caractères (`XXX-XXX`, ex. `K7P-3QX`), valable 7 jours.
 - Premier code : `npm run admin:code` depuis votre PC (voir « Commandes utiles »).
 - Codes suivants : onglet **Comptes** → « Générer un code ». Le code complet n'est affiché qu'une fois ; seule son empreinte SHA-256 est stockée. Un code inutilisé peut être révoqué.
 - L'onglet liste les comptes créés (date, qui a invité, dernière connexion) et permet de supprimer un autre compte (ses sessions sont fermées).

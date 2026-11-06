@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { createTestDb, setupOpenRace } from "./helpers";
 import type { Db } from "@/server/db/client";
-import { adminSessions, adminUsers } from "@/server/db/schema";
+import { accessCodes, adminSessions, adminUsers } from "@/server/db/schema";
 import {
   createAccessCode,
   deleteAccount,
@@ -36,7 +36,7 @@ const code = async (e: Promise<unknown>) => {
 describe("espace privé : codes d'accès et comptes", () => {
   it("crée un compte avec un code, qui ne sert qu'une fois", async () => {
     const { code: c } = await createAccessCode(db, null);
-    expect(c).toMatch(/^RB-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/);
+    expect(c).toMatch(/^[2-9A-HJ-NP-Z]{3}-[2-9A-HJ-NP-Z]{3}$/);
     // Saisie tolérante : minuscules, espaces, sans tirets.
     const r = await registerWithCode(db, { code: ` ${c.toLowerCase().replace(/-/g, " ")} `, username: "Alexis", password: "motdepasse1" });
     expect(r.user.username).toBe("Alexis");
@@ -49,7 +49,7 @@ describe("espace privé : codes d'accès et comptes", () => {
   });
 
   it("refuse un code inconnu, révoqué, un pseudo pris (casse ignorée) ou un mot de passe court", async () => {
-    expect(await code(registerWithCode(db, { code: "RB-AAAA-BBBB-CCCC", username: "Alexis", password: "motdepasse1" }))).toBe("FORBIDDEN");
+    expect(await code(registerWithCode(db, { code: "AAA-BBB", username: "Alexis", password: "motdepasse1" }))).toBe("FORBIDDEN");
     const a = await createAccessCode(db, null);
     await registerWithCode(db, { code: a.code, username: "Alexis", password: "motdepasse1" });
     const b = await createAccessCode(db, null);
@@ -59,6 +59,11 @@ describe("espace privé : codes d'accès et comptes", () => {
     await revokeAccessCode(db, b.id, me);
     expect(await code(registerWithCode(db, { code: b.code, username: "Bob", password: "motdepasse1" }))).toBe("FORBIDDEN");
     expect(await code(revokeAccessCode(db, b.id, me))).toBe("CONFLICT");
+    // Code expiré au bout de 7 jours.
+    const old = await createAccessCode(db, me);
+    await db.update(accessCodes).set({ createdAt: new Date(Date.now() - 8 * 86_400_000) }).where(eq(accessCodes.id, old.id));
+    expect(await code(registerWithCode(db, { code: old.code, username: "Carl", password: "motdepasse1" }))).toBe("FORBIDDEN");
+    expect((await getAccountsOverview(db, me)).codes.find((c) => c.id === old.id)!.status).toBe("expired");
   });
 
   it("connexion, déconnexion et blocage après 5 échecs", async () => {
@@ -82,7 +87,7 @@ describe("espace privé : codes d'accès et comptes", () => {
     const ov = await getAccountsOverview(db, first.user);
     expect(ov.users.map((u) => [u.username, u.invitedBy, u.isMe])).toEqual([["Alexis", null, true], ["Bob", "Alexis", false]]);
     expect(ov.codes.every((c) => c.status === "used")).toBe(true);
-    expect(ov.codes[0]!.hint).toBe(normalizeAccessCode(invite.code).slice(-4));
+    expect(ov.codes[0]!.hint).toBe(normalizeAccessCode(invite.code).slice(-2));
 
     expect(await code(deleteAccount(db, first.user.id, first.user))).toBe("FORBIDDEN");
     await deleteAccount(db, second.user.id, first.user);

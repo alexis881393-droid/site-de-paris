@@ -43,13 +43,19 @@ export async function verifyPassword(password: string, stored: string): Promise<
 /** Empreinte des codes d'accès et des jetons de session (jamais stockés en clair). */
 export const sha256 = (v: string) => createHash("sha256").update(v).digest("hex");
 
-/** Alphabet sans caractères ambigus (0/O, 1/I/L). 12 caractères ≈ 59 bits d'aléa. */
+/**
+ * Alphabet sans caractères ambigus (0/O, 1/I/L). 6 caractères = 887 millions de combinaisons :
+ * court à dicter en RP, et chaque code expire au bout de CODE_TTL_DAYS jours.
+ */
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 
-/** Code d'accès lisible : RB-XXXX-XXXX-XXXX. */
+export const CODE_TTL_DAYS = 7;
+const codeExpired = (createdAt: Date) => createdAt.getTime() < Date.now() - CODE_TTL_DAYS * 86_400_000;
+
+/** Code d'accès court, facile à dicter : XXX-XXX (ex. K7P-3QX). */
 export function generateAccessCode(): string {
-  const chars = Array.from({ length: 12 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
-  return `RB-${chars.slice(0, 4)}-${chars.slice(4, 8)}-${chars.slice(8)}`;
+  const chars = Array.from({ length: 6 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
+  return `${chars.slice(0, 3)}-${chars.slice(3)}`;
 }
 
 /** Forme canonique d'un code saisi : majuscules, sans tirets ni espaces, sans le préfixe RB. */
@@ -76,7 +82,7 @@ export async function createAccessCode(db: DbOrTx, createdBy: SessionUserDTO | n
   const core = normalizeAccessCode(code);
   const [row] = await db
     .insert(accessCodes)
-    .values({ codeHash: sha256(core), hint: core.slice(-4), createdBy: createdBy?.id ?? null })
+    .values({ codeHash: sha256(core), hint: core.slice(-2), createdBy: createdBy?.id ?? null })
     .returning({ id: accessCodes.id });
   await logOperation(db, "access_code_created", null, { codeId: row!.id, by: createdBy?.username ?? "script local" });
   return { id: row!.id, code };
@@ -123,8 +129,8 @@ export async function registerWithCode(db: Db, input: unknown) {
       .from(accessCodes)
       .where(eq(accessCodes.codeHash, sha256(normalizeAccessCode(code))))
       .for("update");
-    if (!ac || ac.usedAt || ac.revokedAt) {
-      throw new AppError("FORBIDDEN", "Code d'accès invalide, déjà utilisé ou révoqué.");
+    if (!ac || ac.usedAt || ac.revokedAt || codeExpired(ac.createdAt)) {
+      throw new AppError("FORBIDDEN", "Code d'accès invalide, expiré, déjà utilisé ou révoqué.");
     }
     const usernameKey = username.toLowerCase();
     const [taken] = await t.select({ id: adminUsers.id }).from(adminUsers).where(eq(adminUsers.usernameKey, usernameKey));
@@ -229,7 +235,7 @@ export async function getAccountsOverview(db: Db, me: SessionUserDTO): Promise<A
       hint: c.hint,
       createdAt: c.createdAt.toISOString(),
       createdBy,
-      status: c.usedAt ? "used" : c.revokedAt ? "revoked" : "active",
+      status: c.usedAt ? "used" : c.revokedAt ? "revoked" : codeExpired(c.createdAt) ? "expired" : "active",
       usedAt: iso(c.usedAt),
       usedBy: usedBy ?? (c.usedAt ? "compte supprimé" : null),
       revokedAt: iso(c.revokedAt),

@@ -90,7 +90,7 @@ export function AuthScreen() {
                 id="auth-code"
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="RB-XXXX-XXXX-XXXX"
+                placeholder="ABC-123"
                 autoComplete="off"
                 autoCapitalize="characters"
                 autoCorrect="off"

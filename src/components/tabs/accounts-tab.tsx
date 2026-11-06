@@ -52,7 +52,7 @@ export function AccountsTab() {
 
       <section>
         <SectionTitle
-          sub="Un code = un seul compte. Le code complet n'est affiché qu'une fois."
+          sub="Un code = un seul compte, valable 7 jours. Le code complet n'est affiché qu'une fois."
           aside={
             <Button icon={<KeyRound className="h-4 w-4" {...ICON} />} loading={busy} onClick={generate}>
               Générer un code
@@ -160,8 +160,8 @@ function CodeRow({ c, onDone }: { c: AccessCodeDTO; onDone: () => void }) {
 
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-5">
-      <span className="font-display text-sm tracking-[0.12em] text-mute tabular-nums">RB-••••-••••-{c.hint}</span>
-      {c.status === "active" ? <Tag tone="live">Actif</Tag> : c.status === "used" ? <Tag tone="done">Utilisé</Tag> : <Tag tone="muted">Révoqué</Tag>}
+      <span className="font-display text-sm tracking-[0.12em] text-mute tabular-nums">{c.hint.length > 2 ? `RB-••••-••••-${c.hint}` : `•••-•${c.hint}`}</span>
+      {c.status === "active" ? <Tag tone="live">Actif</Tag> : c.status === "used" ? <Tag tone="done">Utilisé</Tag> : c.status === "expired" ? <Tag tone="muted">Expiré</Tag> : <Tag tone="muted">Révoqué</Tag>}
       <div className="min-w-0 flex-1 text-xs text-dim">
         {c.status === "used"
           ? `par ${c.usedBy} le ${formatDateTime(c.usedAt!)}`
@@ -216,7 +216,7 @@ function NewCodeDialog({ code, onClose }: { code: string | null; onClose: () => 
         </div>
         <p className="flex items-start gap-2 text-sm text-mute">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-go" {...ICON} />
-          À usage unique : la personne va sur l&apos;espace privé, onglet « Créer un compte », saisit ce code puis choisit son pseudo et son mot de passe.
+          À usage unique, valable 7 jours : la personne va sur l&apos;espace privé, onglet « Créer un compte », saisit ce code puis choisit son pseudo et son mot de passe.
         </p>
       </div>
     </Modal>

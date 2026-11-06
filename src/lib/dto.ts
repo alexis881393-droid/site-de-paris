@@ -163,11 +163,11 @@ export type AccountDTO = {
 
 export type AccessCodeDTO = {
   id: string;
-  /** 4 derniers caractères du code. */
+  /** Derniers caractères du code (2 pour les codes courts, 4 pour les anciens codes RB-…). */
   hint: string;
   createdAt: string;
   createdBy: string | null;
-  status: "active" | "used" | "revoked";
+  status: "active" | "used" | "revoked" | "expired";
   usedAt: string | null;
   usedBy: string | null;
   revokedAt: string | null;
