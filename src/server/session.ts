@@ -6,7 +6,11 @@ import { AppError } from "./errors";
 import { userForToken } from "./services/auth";
 import type { SessionUserDTO } from "@/lib/dto";
 
-/** Cookie de session : httpOnly (inaccessible au JavaScript), SameSite=Lax (anti-CSRF), Secure en production. */
+/**
+ * Cookie de session : httpOnly (inaccessible au JavaScript). En production : SameSite=None + Secure,
+ * pour que la connexion fonctionne aussi quand le site est intégré ailleurs (script FiveM).
+ * La protection anti-CSRF est assurée par l'en-tête X-Racebet (src/proxy.ts).
+ */
 export const SESSION_COOKIE = "rb_session";
 
 export async function sessionToken(): Promise<string | undefined> {
@@ -24,16 +28,20 @@ export async function requireUser(db: Db): Promise<SessionUserDTO> {
   return user;
 }
 
+const PROD = process.env.NODE_ENV === "production";
+const SAME_SITE = PROD ? ("none" as const) : ("lax" as const);
+
 export function setSessionCookie(res: NextResponse, token: string, expiresAt: Date) {
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: PROD,
+    sameSite: SAME_SITE,
+    partitioned: PROD,
     path: "/",
     expires: expiresAt,
   });
 }
 
 export function clearSessionCookie(res: NextResponse) {
-  res.cookies.set(SESSION_COOKIE, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0 });
+  res.cookies.set(SESSION_COOKIE, "", { httpOnly: true, secure: PROD, sameSite: SAME_SITE, partitioned: PROD, path: "/", maxAge: 0 });
 }

@@ -37,7 +37,8 @@ Panneau de contrôle pour la **comptabilité des paris fictifs** sur les courses
 - Premier code : `npm run admin:code` depuis votre PC (voir « Commandes utiles »).
 - Codes suivants : onglet **Comptes** → « Générer un code ». Le code complet n'est affiché qu'une fois ; seule son empreinte SHA-256 est stockée. Un code inutilisé peut être révoqué.
 - L'onglet liste les comptes créés (date, qui a invité, dernière connexion) et permet de supprimer un autre compte (ses sessions sont fermées).
-- Mots de passe hachés avec scrypt ; 5 échecs de connexion consécutifs bloquent le compte 15 min ; session de 30 jours dans un cookie `httpOnly`, `SameSite=Lax`, `Secure` en production.
+- Mots de passe hachés avec scrypt ; 5 échecs de connexion consécutifs bloquent le compte 15 min ; session de 30 jours dans un cookie `httpOnly` (en production : `SameSite=None; Secure; Partitioned`, pour fonctionner aussi intégré dans un script FiveM).
+- Le site s'ouvre partout : aucun `X-Frame-Options`, il peut être intégré en iframe / NUI / DUI. Anti-CSRF : les requêtes API qui modifient des données exigent l'en-tête `X-Racebet: 1` (`src/proxy.ts`).
 
 **En-tête** : logo, sélecteur de course active, statut, bouton « Nouvelle course », historique de toutes les courses (recherche, filtre par statut, suppression).
 

@@ -19,7 +19,8 @@ export async function api<T>(url: string, init?: RequestInit & { json?: unknown 
   try {
     res = await fetch(url, {
       ...rest,
-      headers: { ...(json !== undefined ? { "Content-Type": "application/json" } : {}), ...rest.headers },
+      // X-Racebet : preuve que la requête vient du site (contrôle anti-CSRF dans src/proxy.ts).
+      headers: { "X-Racebet": "1", ...(json !== undefined ? { "Content-Type": "application/json" } : {}), ...rest.headers },
       body: json !== undefined ? JSON.stringify(json) : rest.body,
       cache: "no-store",
     });
