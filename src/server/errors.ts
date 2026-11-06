@@ -77,6 +77,12 @@ export function mapDbError(err: unknown): AppError | null {
     if (constraint === "bets_request_id_key") return new AppError("CONFLICT", "Requête déjà traitée.");
     return new AppError("CONFLICT", "Doublon refusé par la base de données.");
   }
+  if (code === "42P01" || code === "42883") {
+    return new AppError(
+      "DB_NOT_CONFIGURED",
+      "Base Neon connectée mais tables absentes : exécutez « npm run db:migrate » depuis votre PC avec la même DATABASE_URL.",
+    );
+  }
   if (code === "23503") return new AppError("CONFLICT", "Référence invalide (élément lié introuvable ou utilisé).");
   if (code === "23514") return new AppError("VALIDATION", "Valeur refusée par les contraintes de la base.");
   if (code === "P0001" || /RB_[A-Z_]+/.test(message)) {
