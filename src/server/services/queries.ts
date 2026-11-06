@@ -11,6 +11,7 @@ import type {
   BetRowDTO,
   DriverRowDTO,
   GlobalAccountingDTO,
+  KnownDriverDTO,
   RaceCardDTO,
   RaceDTO,
   RaceDetailDTO,
@@ -71,6 +72,24 @@ export async function listRaces(db: Db, opts: { q?: string; status?: RaceStatus 
   return rows
     .filter((r) => !q || normalizeName(r.race.name).includes(q))
     .map((r) => ({ ...toRaceDTO(r.race), betCount: r.betCount, totalStakes: r.totalStakes, driverCount: r.driverCount }));
+}
+
+/**
+ * Registre des pilotes déjà engagés dans au moins une course (toutes courses confondues),
+ * dédoublonné par nom normalisé : nom et numéro de la participation la plus récente.
+ */
+export async function listKnownDrivers(db: Db): Promise<KnownDriverDTO[]> {
+  const rows = await db
+    .select({ name: drivers.name, nameKey: drivers.nameKey, number: drivers.number, createdAt: drivers.createdAt })
+    .from(drivers)
+    .orderBy(desc(drivers.createdAt));
+  const map = new Map<string, KnownDriverDTO>();
+  for (const r of rows) {
+    const cur = map.get(r.nameKey);
+    if (cur) cur.races += 1;
+    else map.set(r.nameKey, { name: r.name, nameKey: r.nameKey, number: r.number, races: 1, lastUsedAt: r.createdAt.toISOString() });
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" }));
 }
 
 export async function getRaceDetail(db: Db, raceId: string): Promise<RaceDetailDTO> {

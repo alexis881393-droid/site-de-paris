@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR, { mutate as globalMutate } from "swr";
-import type { GlobalAccountingDTO, RaceCardDTO, RaceDetailDTO } from "./dto";
+import type { GlobalAccountingDTO, KnownDriverDTO, RaceCardDTO, RaceDetailDTO } from "./dto";
 
 export class ApiError extends Error {
   constructor(
@@ -45,6 +45,10 @@ export function useRaces() {
 
 export function useRace(id: string | null) {
   return useSWR<RaceDetailDTO>(id ? `/api/races/${id}` : null, fetcher, LIVE);
+}
+
+export function useKnownDrivers(enabled: boolean) {
+  return useSWR<KnownDriverDTO[]>(enabled ? "/api/drivers" : null, fetcher, { revalidateOnFocus: true });
 }
 
 export function useAccounting(params: URLSearchParams) {

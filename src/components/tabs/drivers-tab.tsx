@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Check, Flag, Lock, Pencil, Plus, Trash2, Trophy, Unlock, X } from "lucide-react";
-import { api, refreshAll } from "@/lib/api-client";
+import { api, refreshAll, useKnownDrivers } from "@/lib/api-client";
 import type { DriverRowDTO, RaceDetailDTO } from "@/lib/dto";
+import { normalizeName } from "@/lib/identity";
 import { computeCommission, planResult } from "@/lib/finance";
 import { formatDateTime, formatMoney, formatOdds, formatPercentBps, formatShare } from "@/lib/format";
-import { Button, EmptyState, Field, ICON, Input, Modal, Plate, SectionTitle, SummaryRow, Tag, cx } from "../ui";
+import { Button, EmptyState, Field, ICON, Input, Modal, Plate, SectionTitle, Select, SummaryRow, Tag, cx } from "../ui";
 
 export function DriversTab({ detail, onGoToBets }: { detail: RaceDetailDTO; onGoToBets: () => void }) {
   const { race, drivers } = detail;
@@ -66,7 +67,7 @@ export function DriversTab({ detail, onGoToBets }: { detail: RaceDetailDTO; onGo
         Pilotes &amp; cotes
       </SectionTitle>
 
-      {draft && <AddDriverForm raceId={race.id} />}
+      {draft && <AddDriverForm raceId={race.id} current={drivers} />}
 
       <Plate glow={race.status === "open"}>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3.5">
@@ -239,34 +240,76 @@ function DriverRow({ d, index, totalPool, maxPool, editable, raceId }: { d: Driv
   );
 }
 
-function AddDriverForm({ raceId }: { raceId: string }) {
+function AddDriverForm({ raceId, current }: { raceId: string; current: DriverRowDTO[] }) {
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
   const [busy, setBusy] = useState(false);
+  const { data: known } = useKnownDrivers(true);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
+  // Pilotes déjà créés lors des courses précédentes, sauf ceux déjà engagés dans cette course.
+  const available = useMemo(() => {
+    const taken = new Set(current.map((d) => normalizeName(d.name)));
+    return (known ?? []).filter((k) => !taken.has(k.nameKey));
+  }, [known, current]);
+
+  async function add(driverName: string, driverNumber: string | number | null) {
     setBusy(true);
     try {
-      await api(`/api/races/${raceId}/drivers`, { method: "POST", json: { name, number: number || null } });
-      toast.success("Pilote ajouté", { description: name.trim() });
-      setName("");
-      setNumber("");
+      await api(`/api/races/${raceId}/drivers`, { method: "POST", json: { name: driverName, number: driverNumber ?? null } });
+      toast.success("Pilote ajouté", { description: driverName.trim() });
       await refreshAll();
-      document.getElementById("driver-name")?.focus();
+      return true;
     } catch (err) {
       toast.error("Ajout impossible", { description: (err as Error).message });
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    if (await add(name, number || null)) {
+      setName("");
+      setNumber("");
+      document.getElementById("driver-name")?.focus();
+    }
+  }
+
+  async function pickKnown(key: string) {
+    const k = available.find((x) => x.nameKey === key);
+    if (!k) return;
+    // Numéro repris s'il est libre dans cette course, sinon le pilote est ajouté sans numéro.
+    const numberFree = k.number != null && !current.some((d) => d.number === k.number);
+    await add(k.name, numberFree ? k.number : null);
+  }
+
   return (
     <Plate>
+      {(known?.length ?? 0) > 0 && (
+        <div className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-end sm:p-5">
+          <div className="flex-1">
+            <Field
+              label="Pilote déjà enregistré"
+              htmlFor="known-driver"
+              hint={available.length ? `${available.length} pilote${available.length > 1 ? "s" : ""} disponible${available.length > 1 ? "s" : ""} : la sélection l'ajoute directement à la course.` : "Tous les pilotes enregistrés sont déjà dans cette course."}
+            >
+              <Select id="known-driver" value="" disabled={busy || available.length === 0} onChange={(e) => pickKnown(e.target.value)}>
+                <option value="">Choisir un pilote enregistré…</option>
+                {available.map((k) => (
+                  <option key={k.nameKey} value={k.nameKey}>
+                    {k.number != null ? `#${k.number} ` : ""}{k.name} — {k.races} course{k.races > 1 ? "s" : ""}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        </div>
+      )}
       <form onSubmit={submit} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end sm:p-5">
         <div className="flex-1">
-          <Field label="Nom RP du pilote" htmlFor="driver-name" required>
+          <Field label="Nouveau pilote (nom RP)" htmlFor="driver-name" required>
             <Input id="driver-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="Ex. Lena « Spark » Varga" autoComplete="off" />
           </Field>
         </div>

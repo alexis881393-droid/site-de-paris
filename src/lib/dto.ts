@@ -37,6 +37,15 @@ export type DriverRowDTO = {
   oddsCents: number | null;
 };
 
+/** Pilote déjà engagé dans une course précédente (registre). */
+export type KnownDriverDTO = {
+  name: string;
+  nameKey: string;
+  number: number | null;
+  races: number;
+  lastUsedAt: string;
+};
+
 export type BetRowDTO = {
   id: string;
   bettorName: string;

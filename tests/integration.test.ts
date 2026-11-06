@@ -16,7 +16,7 @@ import {
   removeDriver,
   updateDriver,
 } from "@/server/services/commands";
-import { getGlobalAccounting, getRaceDetail } from "@/server/services/queries";
+import { getGlobalAccounting, getRaceDetail, listKnownDrivers } from "@/server/services/queries";
 import { buildBackup, verifyBackup } from "@/server/backup/export";
 import { restoreBackup } from "@/server/backup/restore";
 import { AppError, pgErrorInfo } from "@/server/errors";
@@ -227,6 +227,20 @@ describe("Test 6 — pari verrouillé", () => {
     await addDriver(db, draft.id, { name: "X" });
     await deleteRace(db, draft.id);
     expect(await db.select().from(races).where(eq(races.id, draft.id))).toHaveLength(0);
+  });
+});
+
+describe("Registre des pilotes", () => {
+  it("liste les pilotes déjà créés, dédoublonnés, avec leur dernier numéro", async () => {
+    await setupOpenRace(db, { name: "R1", drivers: ["Alpha", "Bravo"] });
+    const r2 = await createRace(db, { name: "R2", commissionPercent: "10" });
+    await addDriver(db, r2.id, { name: "  ALPHA ", number: 42 });
+    const known = await listKnownDrivers(db);
+    expect(known.map((k) => k.nameKey)).toEqual(["alpha", "bravo"]);
+    const alpha = known.find((k) => k.nameKey === "alpha")!;
+    expect(alpha.races).toBe(2);
+    expect(alpha.number).toBe(42);
+    expect(alpha.name).toBe("ALPHA");
   });
 });
 
