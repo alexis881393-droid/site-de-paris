@@ -49,6 +49,11 @@
 
 html {
   background: var(--color-void);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Tablette : pas de délai ni de zoom au double appui, pas de flash gris au toucher. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -59,6 +64,9 @@ body {
   font-feature-settings: "tnum" 1, "lnum" 1;
   -webkit-font-smoothing: antialiased;
   min-height: 100dvh;
+  /* Encoches et coins arrondis des tablettes (viewport-fit=cover). */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 /* Trame de fond : grille fine + lignes de vitesse, fixe et non interactive. */
@@ -157,8 +165,31 @@ body::after {
 .data-table tbody tr {
   transition: background-color 160ms var(--ease-snap);
 }
-.data-table tbody tr:hover {
-  background: rgb(255 107 0 / 0.045);
+@media (hover: hover) {
+  .data-table tbody tr:hover {
+    background: rgb(255 107 0 / 0.045);
+  }
+}
+.data-table tbody tr:active {
+  background: rgb(255 107 0 / 0.07);
+}
+@media (pointer: coarse) {
+  .data-table thead th,
+  .data-table tbody td {
+    padding: 0.9rem 1rem;
+  }
+}
+/* Première colonne figée pendant le défilement horizontal (tableaux larges sur tablette). */
+.data-table.sticky-first th:first-child,
+.data-table.sticky-first td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--color-plate);
+  box-shadow: 1px 0 0 var(--color-line);
+}
+.data-table.sticky-first thead th:first-child {
+  z-index: 2;
+  background: var(--color-pit);
 }
 .data-table .num {
   text-align: right;

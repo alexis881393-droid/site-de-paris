@@ -14,7 +14,13 @@ export const metadata: Metadata = {
   icons: { icon: "/icon.svg" },
 };
 
-export const viewport: Viewport = { themeColor: "#070707", colorScheme: "dark" };
+export const viewport: Viewport = {
+  themeColor: "#070707",
+  colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -24,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Toaster
           theme="dark"
           position="bottom-right"
+          offset={{ bottom: "max(16px, env(safe-area-inset-bottom))", right: "max(16px, env(safe-area-inset-right))" }}
           toastOptions={{
             classNames: {
               toast: "!bg-plate !border !border-line-strong !text-ink !font-sans !rounded-none chamfer-sm",

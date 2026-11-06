@@ -92,30 +92,30 @@ export function ControlRoom() {
   return (
     <div className="min-h-dvh">
       {/* ------------------------------------------------------------- En-tête */}
-      <header className="sticky top-0 z-30 border-b border-line/80 bg-void/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6">
+      <header className="sticky top-0 z-30 border-b border-line/80 bg-void/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+        <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6 md:px-8 xl:px-6">
           <Logo />
           <div className="mx-1 hidden h-8 w-px bg-line md:block" aria-hidden />
 
           <Popover.Root open={switcherOpen} onOpenChange={setSwitcherOpen}>
             <Popover.Trigger asChild>
               <button
-                className="chamfer-sm group order-3 flex min-w-0 flex-1 basis-full items-center gap-3 bg-plate px-3 py-2 text-left ring-1 ring-inset ring-line-strong transition-shadow hover:ring-flame/60 md:order-none md:basis-auto md:max-w-md"
+                className="chamfer-sm group order-3 flex min-w-0 flex-1 basis-full items-center gap-3 bg-plate px-3 py-2 pointer-coarse:py-2.5 text-left ring-1 ring-inset ring-line-strong transition-shadow hover:ring-flame/60 md:order-none md:basis-0 md:max-w-md"
                 aria-label="Changer de course"
               >
                 <Flag className="h-4 w-4 shrink-0 text-flame" {...ICON} />
                 <span className="min-w-0 flex-1">
-                  <span className="block font-cond text-[0.7rem] font-semibold tracking-[0.12em] text-dim">COURSE ACTIVE</span>
+                  <span className="block whitespace-nowrap font-cond text-[0.7rem] font-semibold tracking-[0.12em] text-dim">COURSE ACTIVE</span>
                   <span className="block truncate font-display text-[0.95rem] font-semibold">{current?.name ?? (isLoading ? "Chargement…" : "Aucune course")}</span>
                 </span>
-                {current && <StatusBadge status={current.status} className="hidden sm:inline-flex" />}
+                {current && <StatusBadge status={current.status} className="hidden sm:inline-flex md:hidden lg:inline-flex" />}
                 <ChevronDown className="h-4 w-4 shrink-0 text-mute transition-transform group-data-[state=open]:rotate-180" {...ICON} />
               </button>
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Content align="start" sideOffset={6} className="z-40 w-[min(28rem,calc(100vw-2rem))] animate-rise">
                 <div className="chamfer plate-frame">
-                  <div className="chamfer max-h-[60vh] overflow-y-auto bg-pit p-2">
+                  <div className="chamfer max-h-[60dvh] overflow-y-auto overscroll-contain bg-pit p-2">
                     <div className="px-2 pt-1 pb-2 font-cond text-xs font-semibold tracking-[0.1em] text-dim">COURSES EN COURS ({activeRaces.length})</div>
                     {activeRaces.length === 0 && <p className="px-2 pb-2 text-sm text-mute">Aucune course active.</p>}
                     {activeRaces.map((r) => (
@@ -126,7 +126,7 @@ export function ControlRoom() {
                           setSwitcherOpen(false);
                         }}
                         className={cx(
-                          "chamfer-sm flex w-full items-center gap-3 px-2.5 py-2 text-left transition-colors hover:bg-white/5",
+                          "chamfer-sm flex w-full items-center gap-3 px-2.5 py-2 pointer-coarse:py-3.5 text-left transition-colors hover:bg-white/5 active:bg-white/10",
                           r.id === raceId && "bg-flame/10",
                         )}
                       >
@@ -152,7 +152,7 @@ export function ControlRoom() {
 
           <div className="ml-auto flex items-center gap-2">
             <Button variant="ghost" icon={<History className="h-4 w-4" {...ICON} />} onClick={() => setManagerOpen(true)} title="Historique des courses (H)">
-              <span className="hidden sm:inline">Historique</span>
+              <span className="hidden lg:inline">Historique</span>
             </Button>
             <Button icon={<Plus className="h-4 w-4" {...ICON} />} onClick={() => setNewOpen(true)} title="Nouvelle course (N)">
               <span className="hidden sm:inline">Nouvelle course</span>
@@ -162,7 +162,7 @@ export function ControlRoom() {
       </header>
 
       {/* ------------------------------------------------------------- Corps */}
-      <main className="mx-auto max-w-[1500px] px-4 pb-16 sm:px-6">
+      <main className="mx-auto max-w-[1500px] px-4 pb-16 sm:px-6 md:px-8 xl:px-6">
         {racesError && !races ? (
           <ConnectionError message={racesError.message} />
         ) : !races ? (
@@ -186,13 +186,13 @@ export function ControlRoom() {
                     key={t.id}
                     value={t.id}
                     className={cx(
-                      "chamfer-sm group relative flex shrink-0 items-center gap-2 px-3 py-2.5 font-display sm:px-4 text-[0.9rem] font-semibold tracking-[0.12em] uppercase transition-colors",
+                      "chamfer-sm group relative flex shrink-0 items-center gap-2 px-3 py-2.5 font-display sm:px-4 pointer-coarse:px-5 pointer-coarse:py-3.5 text-[0.9rem] font-semibold tracking-[0.12em] uppercase transition-colors",
                       "text-mute hover:text-ink data-[state=active]:bg-flame data-[state=active]:text-black data-[state=active]:shadow-[0_0_24px_-6px_rgb(255_107_0/0.9)]",
                     )}
                   >
                     <t.icon className="h-4 w-4" {...ICON} />
                     {t.label}
-                    <kbd className="ml-1 hidden font-cond text-[0.65rem] opacity-50 lg:inline">{t.key}</kbd>
+                    <kbd className="ml-1 hidden font-cond text-[0.65rem] opacity-50 lg:pointer-fine:inline">{t.key}</kbd>
                   </Tabs.Trigger>
                 ))}
               </Tabs.List>
@@ -227,7 +227,7 @@ export function ControlRoom() {
         )}
       </main>
 
-      <footer className="mx-auto max-w-[1500px] px-4 pb-8 text-xs text-dim sm:px-6">
+      <footer className="mx-auto max-w-[1500px] px-4 pb-[max(2rem,env(safe-area-inset-bottom))] text-xs text-dim sm:px-6 md:px-8 xl:px-6">
         Outil de comptabilité de paris fictifs en dollars FiveM, non convertibles en argent réel. Accès sans authentification : toute personne disposant de l&apos;adresse peut consulter et agir.
       </footer>
 

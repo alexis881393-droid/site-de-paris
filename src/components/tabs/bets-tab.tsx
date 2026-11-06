@@ -209,10 +209,10 @@ function BetForm({ detail }: { detail: RaceDetailDTO }) {
       <Plate glow>
         <form onSubmit={review} className="grid gap-4 p-4 sm:p-5 md:grid-cols-2 xl:grid-cols-[1.3fr_1fr_1.2fr_1fr_auto] xl:items-start">
           <Field label="Nom RP du parieur" htmlFor="bettor-name" required error={already ? `Déjà parié : ${already.bettorName} (${formatMoney(already.amount)} sur ${already.driverName}).` : null}>
-            <Input id="bettor-name" value={bettorName} onChange={(e) => setBettorName(e.target.value)} maxLength={60} autoComplete="off" placeholder="Ex. Tony Marchetti" />
+            <Input id="bettor-name" value={bettorName} onChange={(e) => setBettorName(e.target.value)} maxLength={60} autoComplete="off" autoCapitalize="words" autoCorrect="off" spellCheck={false} enterKeyHint="next" placeholder="Ex. Tony Marchetti" />
           </Field>
           <Field label="Numéro de téléphone" htmlFor="bettor-phone" hint="Facultatif — identifie le joueur" error={phoneOk ? null : "Chiffres, espaces, +, - ou points uniquement."}>
-            <Input id="bettor-phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={30} autoComplete="off" placeholder="555-0123" />
+            <Input id="bettor-phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={30} autoComplete="off" enterKeyHint="next" placeholder="555-0123" />
           </Field>
           <Field label="Pilote" htmlFor="bet-driver" required>
             <Select id="bet-driver" value={driverId} onChange={(e) => setDriverId(e.target.value)}>
@@ -225,7 +225,7 @@ function BetForm({ detail }: { detail: RaceDetailDTO }) {
             </Select>
           </Field>
           <Field label="Mise ($ fictifs)" htmlFor="bet-amount" required error={amountError}>
-            <Input id="bet-amount" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" autoComplete="off" placeholder="10000" />
+            <Input id="bet-amount" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" autoComplete="off" enterKeyHint="done" placeholder="10000" />
           </Field>
           <Button type="submit" size="lg" disabled={!valid || !!already} icon={<Ticket className="h-4 w-4" {...ICON} />} className="md:col-span-2 xl:col-span-1 xl:mt-[1.65rem]">
             Enregistrer
@@ -293,27 +293,27 @@ function BetTable({ detail }: { detail: RaceDetailDTO }) {
 
   return (
     <Plate>
-      <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">
+      <div className="flex flex-col gap-3 border-b border-line p-4 xl:flex-row xl:items-center">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-dim" {...ICON} />
           <Input className="pl-9" placeholder="Rechercher un parieur ou un téléphone…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher un parieur" />
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex">
-          <Select value={driver} onChange={(e) => setDriver(e.target.value)} aria-label="Filtrer par pilote" className="lg:w-44">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:flex">
+          <Select value={driver} onChange={(e) => setDriver(e.target.value)} aria-label="Filtrer par pilote" className="xl:w-44">
             <option value="">Tous les pilotes</option>
             {detail.drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </Select>
-          <Select value={outcome} onChange={(e) => setOutcome(e.target.value)} aria-label="Filtrer par résultat" className="lg:w-40" disabled={!finalState}>
+          <Select value={outcome} onChange={(e) => setOutcome(e.target.value)} aria-label="Filtrer par résultat" className="xl:w-40" disabled={!finalState}>
             <option value="">Tous résultats</option>
             <option value="winner">Gagnants</option>
             <option value="loser">Perdants</option>
             <option value="refund">Remboursés / à rembourser</option>
           </Select>
-          <Select value={payment} onChange={(e) => setPayment(e.target.value as PaymentState | "")} aria-label="Filtrer par paiement" className="lg:w-40" disabled={!finalState}>
+          <Select value={payment} onChange={(e) => setPayment(e.target.value as PaymentState | "")} aria-label="Filtrer par paiement" className="xl:w-40" disabled={!finalState}>
             <option value="">Tous paiements</option>
             {paymentOptions.map((p) => <option key={p} value={p}>{PAYMENT_LABEL[p]}</option>)}
           </Select>
-          <Select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Trier" className="lg:w-44">
+          <Select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Trier" className="xl:w-44">
             <option value="date">Plus récents</option>
             <option value="amount-desc">Mise décroissante</option>
             <option value="amount-asc">Mise croissante</option>
@@ -328,7 +328,11 @@ function BetTable({ detail }: { detail: RaceDetailDTO }) {
       ) : rows.length === 0 ? (
         <EmptyState icon={<Search className="h-6 w-6" {...ICON} />} title="Aucun résultat">Aucun pari ne correspond aux filtres.</EmptyState>
       ) : (
-        <div className="max-h-[70vh] overflow-auto">
+        <>
+        <ul className="divide-y divide-white/[0.06] lg:hidden">
+          {rows.slice(0, limit).map((b) => <BetCard key={b.id} b={b} />)}
+        </ul>
+        <div className="hidden max-h-[70vh] overflow-auto lg:block pointer-coarse:max-h-none">
           <table className="data-table min-w-[920px] text-sm">
             <thead>
               <tr>
@@ -346,12 +350,13 @@ function BetTable({ detail }: { detail: RaceDetailDTO }) {
               {rows.slice(0, limit).map((b) => <BetRow key={b.id} b={b} />)}
             </tbody>
           </table>
-          {rows.length > limit && (
-            <div className="flex justify-center p-4">
-              <Button variant="ghost" onClick={() => setLimit((l) => l + PAGE)}>Afficher {Math.min(PAGE, rows.length - limit)} de plus</Button>
-            </div>
-          )}
         </div>
+        {rows.length > limit && (
+          <div className="flex justify-center border-t border-line p-4">
+            <Button variant="ghost" onClick={() => setLimit((l) => l + PAGE)}>Afficher {Math.min(PAGE, rows.length - limit)} de plus</Button>
+          </div>
+        )}
+        </>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-4 py-3 text-sm text-mute">
@@ -362,10 +367,10 @@ function BetTable({ detail }: { detail: RaceDetailDTO }) {
   );
 }
 
-function BetRow({ b }: { b: BetRowDTO }) {
+function useSettlement(b: BetRowDTO) {
   const [arm, setArm] = useState(false);
   const [busy, setBusy] = useState(false);
-  const payable = b.settlement && b.settlement.status === "pending";
+  const payable = !!b.settlement && b.settlement.status === "pending";
 
   async function pay() {
     if (!b.settlement) return;
@@ -384,6 +389,85 @@ function BetRow({ b }: { b: BetRowDTO }) {
     }
   }
 
+  return { arm, setArm, busy, payable, pay };
+}
+
+function OutcomeTag({ b }: { b: BetRowDTO }) {
+  return b.outcome === "winner" ? <Tag tone="live">Gagnant</Tag> : b.outcome === "loser" ? <Tag tone="muted">Perdant</Tag> : b.outcome === "refund" ? <Tag tone="locked">Remboursement</Tag> : <span className="text-dim">En attente</span>;
+}
+
+function AmountDue({ b }: { b: BetRowDTO }) {
+  if (b.amountDue == null) return <span className="text-dim">—</span>;
+  return (
+    <span className={cx("font-display font-semibold", b.indicative ? "text-mute" : b.amountDue > 0 ? "text-flame" : "text-dim")} title={b.indicative ? "Gain indicatif si ce pilote gagne, susceptible d'évoluer" : undefined}>
+      {b.indicative && <span className="mr-1 text-xs font-normal">≈</span>}
+      {formatMoney(b.amountDue)}
+    </span>
+  );
+}
+
+function SettleAction({ b, s, wide }: { b: BetRowDTO; s: ReturnType<typeof useSettlement>; wide?: boolean }) {
+  if (s.payable) {
+    return s.arm ? (
+      <span className={cx("inline-flex gap-1", wide && "w-full gap-2 [&>*]:flex-1")}>
+        <Button size="sm" variant="success" loading={s.busy} onClick={s.pay} icon={<CheckCircle2 className="h-3.5 w-3.5" {...ICON} />}>Confirmer</Button>
+        <Button size="sm" variant="ghost" onClick={() => s.setArm(false)} disabled={s.busy}>Non</Button>
+      </span>
+    ) : (
+      <Button size="sm" variant="outline" className={cx(wide && "w-full")} onClick={() => s.setArm(true)}>
+        {b.settlement!.kind === "payout" ? "Marquer payé" : "Marquer remboursé"}
+      </Button>
+    );
+  }
+  if (b.payment === "to_pay" || b.payment === "to_refund") return <AlertTriangle className="ml-auto h-4 w-4 text-caution" {...ICON} />;
+  return null;
+}
+
+/** Carte d'un pari : affichage tablette en portrait et téléphone (pas de défilement horizontal). */
+function BetCard({ b }: { b: BetRowDTO }) {
+  const s = useSettlement(b);
+  return (
+    <li className={cx("space-y-3 px-4 py-4 sm:px-5", b.outcome === "winner" && "bg-flame/[0.05]")}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate font-display text-[1.02rem] font-semibold">{b.bettorName}</div>
+          <div className="text-xs text-dim">{b.phone ? `Tél. ${b.phone}` : "Sans téléphone"} · {formatTime(b.createdAt)}</div>
+        </div>
+        <OutcomeTag b={b} />
+      </div>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
+        <div className="min-w-0">
+          <dt className="font-cond text-[0.75rem] font-semibold tracking-[0.05em] text-dim">Pilote</dt>
+          <dd className="truncate">{b.driverNumber != null && <span className="mr-1 font-display text-mute">#{b.driverNumber}</span>}{b.driverName}</dd>
+        </div>
+        <div>
+          <dt className="font-cond text-[0.75rem] font-semibold tracking-[0.05em] text-dim">Mise</dt>
+          <dd className="font-display font-semibold tabular-nums">{formatMoney(b.amount)}</dd>
+        </div>
+        <div>
+          <dt className="font-cond text-[0.75rem] font-semibold tracking-[0.05em] text-dim">Cote</dt>
+          <dd className="font-display tabular-nums text-flame-soft">{formatOdds(b.oddsCents)}</dd>
+        </div>
+        <div>
+          <dt className="font-cond text-[0.75rem] font-semibold tracking-[0.05em] text-dim">À percevoir</dt>
+          <dd className="tabular-nums"><AmountDue b={b} /></dd>
+        </div>
+      </dl>
+      {(b.payment !== "none" || s.payable) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex items-center gap-2">
+            <PaymentBadge state={b.payment} />
+            {b.settlement?.paidAt && <span className="text-[0.75rem] text-dim">{formatDateTime(b.settlement.paidAt)}</span>}
+          </div>
+          {s.payable && <div className="w-full sm:ml-auto sm:w-64"><SettleAction b={b} s={s} wide /></div>}
+        </div>
+      )}
+    </li>
+  );
+}
+
+function BetRow({ b }: { b: BetRowDTO }) {
+  const s = useSettlement(b);
   return (
     <tr className={cx(b.outcome === "winner" && "bg-flame/[0.05]")}>
       <td>
@@ -396,39 +480,13 @@ function BetRow({ b }: { b: BetRowDTO }) {
       </td>
       <td className="num font-display font-semibold">{formatMoney(b.amount)}</td>
       <td className="num font-display text-flame-soft">{formatOdds(b.oddsCents)}</td>
-      <td>
-        {b.outcome === "winner" ? <Tag tone="live">Gagnant</Tag> : b.outcome === "loser" ? <Tag tone="muted">Perdant</Tag> : b.outcome === "refund" ? <Tag tone="locked">Remboursement</Tag> : <span className="text-dim">En attente</span>}
-      </td>
-      <td className="num">
-        {b.amountDue == null ? (
-          <span className="text-dim">—</span>
-        ) : (
-          <span className={cx("font-display font-semibold", b.indicative ? "text-mute" : b.amountDue > 0 ? "text-flame" : "text-dim")} title={b.indicative ? "Gain indicatif si ce pilote gagne, susceptible d'évoluer" : undefined}>
-            {b.indicative && <span className="mr-1 text-xs font-normal">≈</span>}
-            {formatMoney(b.amountDue)}
-          </span>
-        )}
-      </td>
+      <td><OutcomeTag b={b} /></td>
+      <td className="num"><AmountDue b={b} /></td>
       <td>
         <PaymentBadge state={b.payment} />
         {b.settlement?.paidAt && <div className="mt-0.5 text-[0.7rem] text-dim">{formatDateTime(b.settlement.paidAt)}</div>}
       </td>
-      <td className="text-right">
-        {payable ? (
-          arm ? (
-            <span className="inline-flex gap-1">
-              <Button size="sm" variant="success" loading={busy} onClick={pay} icon={<CheckCircle2 className="h-3.5 w-3.5" {...ICON} />}>Confirmer</Button>
-              <Button size="sm" variant="ghost" onClick={() => setArm(false)} disabled={busy}>Non</Button>
-            </span>
-          ) : (
-            <Button size="sm" variant="outline" onClick={() => setArm(true)}>
-              {b.settlement!.kind === "payout" ? "Marquer payé" : "Marquer remboursé"}
-            </Button>
-          )
-        ) : b.payment === "to_pay" || b.payment === "to_refund" ? (
-          <AlertTriangle className="ml-auto h-4 w-4 text-caution" {...ICON} />
-        ) : null}
-      </td>
+      <td className="text-right"><SettleAction b={b} s={s} /></td>
     </tr>
   );
 }

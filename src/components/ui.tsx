@@ -31,9 +31,10 @@ const VARIANTS: Record<Variant, string> = {
   success: "bg-go/10 text-go ring-1 ring-inset ring-go/45 hover:bg-go/20 hover:ring-go",
 };
 const SIZES = {
-  sm: "h-8 px-3 text-[0.8rem] gap-1.5",
-  md: "h-10 px-4 text-sm gap-2",
-  lg: "h-12 px-6 text-[0.95rem] gap-2.5",
+  // Écran tactile (tablette) : cibles d'au moins 40 à 48 px de haut.
+  sm: "h-8 px-3 text-[0.8rem] gap-1.5 pointer-coarse:h-10 pointer-coarse:min-w-10 pointer-coarse:px-3.5 pointer-coarse:text-[0.85rem]",
+  md: "h-10 px-4 text-sm gap-2 pointer-coarse:h-12 pointer-coarse:min-w-12 pointer-coarse:px-5",
+  lg: "h-12 px-6 text-[0.95rem] gap-2.5 pointer-coarse:h-14 pointer-coarse:px-7",
 };
 
 export function buttonClasses(variant: Variant = "primary", size: "sm" | "md" | "lg" = "md", className?: string) {
@@ -155,10 +156,10 @@ export function PaymentBadge({ state }: { state: PaymentState }) {
 // ---------------------------------------------------------------------------
 
 const fieldBase =
-  "w-full bg-void/80 px-3 text-sm text-ink placeholder:text-dim ring-1 ring-inset ring-line-strong transition-[box-shadow,background-color] duration-200 focus:outline-none focus:ring-flame focus:bg-black focus:shadow-[0_0_0_3px_rgb(255_107_0/0.15)] disabled:opacity-50";
+  "w-full bg-void/80 px-3 text-sm pointer-coarse:text-base text-ink placeholder:text-dim ring-1 ring-inset ring-line-strong transition-[box-shadow,background-color] duration-200 focus:outline-none focus:ring-flame focus:bg-black focus:shadow-[0_0_0_3px_rgb(255_107_0/0.15)] disabled:opacity-50";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
-  return <input ref={ref} className={cx(fieldBase, "chamfer-sm h-10", className)} {...rest} />;
+  return <input ref={ref} className={cx(fieldBase, "chamfer-sm h-10 pointer-coarse:h-12", className)} {...rest} />;
 });
 
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select(
@@ -166,7 +167,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
   ref,
 ) {
   return (
-    <select ref={ref} className={cx(fieldBase, "chamfer-sm h-10 appearance-none bg-[length:12px] bg-[right_0.75rem_center] bg-no-repeat pr-8", className)} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23FF8C00' stroke-width='1.5'/%3E%3C/svg%3E\")" }} {...rest}>
+    <select ref={ref} className={cx(fieldBase, "chamfer-sm h-10 pointer-coarse:h-12 appearance-none bg-[length:12px] bg-[right_0.75rem_center] bg-no-repeat pr-8", className)} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23FF8C00' stroke-width='1.5'/%3E%3C/svg%3E\")" }} {...rest}>
       {children}
     </select>
   );
@@ -230,12 +231,12 @@ export function Modal({
                   <Dialog.Title className="font-display text-lg font-semibold tracking-wide">{title}</Dialog.Title>
                   {description && <Dialog.Description className="mt-1 text-sm text-mute">{description}</Dialog.Description>}
                 </div>
-                <Dialog.Close className="chamfer-sm -mr-1 p-1.5 text-mute transition-colors hover:bg-white/5 hover:text-ink" aria-label="Fermer">
+                <Dialog.Close className="chamfer-sm -mr-1 p-1.5 pointer-coarse:p-3 text-mute transition-colors hover:bg-white/5 hover:text-ink" aria-label="Fermer">
                   <X className="h-5 w-5" {...ICON} />
                 </Dialog.Close>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
-              {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-4">{footer}</div>}
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">{children}</div>
+              {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-4 pointer-coarse:gap-3 pointer-coarse:[&>*]:min-w-32">{footer}</div>}
             </div>
           </div>
         </Dialog.Content>

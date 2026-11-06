@@ -133,8 +133,8 @@ function GlobalView({ data, onSelectRace }: { data: GlobalAccountingDTO; onSelec
   const g = data.global;
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr_1fr]">
-        <Plate glow className="lg:row-span-2">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr]">
+        <Plate glow className="md:col-span-2 lg:col-span-1 lg:row-span-2">
           <div className="flex h-full flex-col justify-between gap-6 p-6">
             <div>
               <div className="font-cond text-sm font-semibold tracking-[0.06em] text-mute">Revenu total définitivement acquis</div>
@@ -203,7 +203,13 @@ function BarChart({ title, rows }: { title: string; rows: { key: string; value: 
         {rows.length === 0 || empty ? (
           <p className="py-12 text-center text-sm text-dim">{rows.length === 0 ? "Pas encore de données sur la période." : "Aucun montant sur la période."}</p>
         ) : (
-          <svg viewBox={`0 0 ${W} ${H + 18}`} className="h-auto w-full" role="img" aria-label={title} onMouseLeave={() => setHover(null)}>
+          <svg
+            viewBox={`0 0 ${W} ${H + 18}`}
+            className="h-auto w-full touch-pan-y select-none"
+            role="img"
+            aria-label={title}
+            onPointerLeave={(e) => e.pointerType === "mouse" && setHover(null)}
+          >
             {ticks.map((t) => (
               <g key={t}>
                 <line x1={0} x2={W} y1={H - t * H} y2={H - t * H} stroke="rgb(255 255 255 / 0.07)" strokeDasharray={t === 0 ? undefined : "2 4"} />
@@ -214,7 +220,7 @@ function BarChart({ title, rows }: { title: string; rows: { key: string; value: 
               const h = r.value > 0 ? Math.max(2, (r.value / max) * (H - 14)) : 0;
               const x = i * (bw + gap);
               return (
-                <g key={r.key} onMouseEnter={() => setHover(i)}>
+                <g key={r.key} onPointerEnter={() => setHover(i)} onPointerDown={() => setHover(i)}>
                   <rect x={x} y={0} width={bw + gap} height={H} fill="transparent" />
                   <path
                     d={h > 4 ? `M${x},${H} V${H - h + 4} q0,-4 4,-4 h${bw - 8} q4,0 4,4 V${H} Z` : `M${x},${H} V${H - h} h${bw} V${H} Z`}
@@ -244,8 +250,8 @@ function RaceTable({ rows, onSelectRace }: { rows: AccountingRowDTO[]; onSelectR
   const cell = (a: RaceAccounting, v: number | null) => (v === null ? <span className="text-dim">—</span> : formatMoney(v));
   return (
     <Plate>
-      <div className="max-h-[65vh] overflow-auto">
-        <table className="data-table min-w-[1100px] text-sm">
+      <div className="max-h-[65vh] overflow-auto overscroll-x-contain pointer-coarse:max-h-none">
+        <table className="data-table sticky-first min-w-[1100px] text-sm">
           <thead>
             <tr>
               <th>Course</th>

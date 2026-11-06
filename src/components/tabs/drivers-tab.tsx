@@ -186,8 +186,8 @@ function DriverRow({ d, index, totalPool, maxPool, editable, raceId }: { d: Driv
       <div className="min-w-0">
         {editing ? (
           <div className="flex flex-wrap gap-2">
-            <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} className="h-9 min-w-40 flex-1" aria-label="Nom du pilote" autoFocus />
-            <Input value={number} onChange={(e) => setNumber(e.target.value)} inputMode="numeric" className="h-9 w-20" placeholder="N°" aria-label="Numéro" />
+            <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} className="h-9 min-w-40 flex-1 pointer-coarse:h-12" aria-label="Nom du pilote" autoFocus />
+            <Input value={number} onChange={(e) => setNumber(e.target.value)} inputMode="numeric" className="h-9 w-20 pointer-coarse:h-12" placeholder="N°" aria-label="Numéro" />
           </div>
         ) : (
           <>
@@ -314,12 +314,12 @@ function AddDriverForm({ raceId, current }: { raceId: string; current: DriverRow
       <form onSubmit={submit} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end sm:p-5">
         <div className="flex-1">
           <Field label="Nouveau pilote (nom RP)" htmlFor="driver-name" required>
-            <Input id="driver-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="Ex. Lena « Spark » Varga" autoComplete="off" />
+            <Input id="driver-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="Ex. Lena « Spark » Varga" autoComplete="off" autoCapitalize="words" autoCorrect="off" spellCheck={false} enterKeyHint="next" />
           </Field>
         </div>
         <div className="sm:w-32">
           <Field label="Numéro" htmlFor="driver-number" hint="Facultatif">
-            <Input id="driver-number" value={number} onChange={(e) => setNumber(e.target.value)} inputMode="numeric" placeholder="27" />
+            <Input id="driver-number" value={number} onChange={(e) => setNumber(e.target.value)} inputMode="numeric" placeholder="27" enterKeyHint="done" />
           </Field>
         </div>
         <Button type="submit" loading={busy} disabled={!name.trim()} icon={<Plus className="h-4 w-4" {...ICON} />} className="sm:mb-[1.35rem]">
@@ -417,7 +417,7 @@ function KnownDriverSearch({
           className="z-40 w-[var(--radix-popover-trigger-width)] animate-rise"
         >
           <div className="chamfer-sm bg-flame/50 p-px">
-            <ul id="known-driver-list" role="listbox" className="chamfer-sm max-h-72 overflow-y-auto bg-pit py-1">
+            <ul id="known-driver-list" role="listbox" className="chamfer-sm max-h-[min(18rem,45dvh)] overflow-y-auto overscroll-contain bg-pit py-1">
               {results.length === 0 ? (
                 <li className="px-3 py-2.5 text-sm text-mute">Aucun pilote ne commence par « {query.trim()} ». Créez-le ci-dessous.</li>
               ) : (
@@ -429,15 +429,15 @@ function KnownDriverSearch({
                     onMouseEnter={() => setActive(i)}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => confirmKey !== k.nameKey && choose(k)}
-                    className={cx("flex cursor-pointer items-center gap-3 px-3 py-2 text-sm", i === active ? "bg-flame/15 text-ink" : "text-ink/90")}
+                    className={cx("flex cursor-pointer items-center gap-3 px-3 py-2 text-sm pointer-coarse:py-3 pointer-coarse:text-base", i === active ? "bg-flame/15 text-ink" : "text-ink/90")}
                   >
                     <span className="w-10 font-display font-semibold text-mute tabular-nums">{k.number != null ? `#${k.number}` : "—"}</span>
                     <span className="min-w-0 flex-1 truncate font-medium">{k.name}</span>
                     {confirmKey === k.nameKey ? (
                       <span className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                         <span className="mr-1 text-xs text-[#ff8a95]">Retirer de la liste ?</span>
-                        <Button size="sm" variant="danger" className="h-7" onClick={async () => { await onRemove(k); setConfirmKey(null); }}>Oui</Button>
-                        <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfirmKey(null)}>Non</Button>
+                        <Button size="sm" variant="danger" className="h-7 pointer-coarse:h-10" onClick={async () => { await onRemove(k); setConfirmKey(null); }}>Oui</Button>
+                        <Button size="sm" variant="ghost" className="h-7 pointer-coarse:h-10" onClick={() => setConfirmKey(null)}>Non</Button>
                       </span>
                     ) : (
                       <>
@@ -446,7 +446,7 @@ function KnownDriverSearch({
                           type="button"
                           aria-label={`Retirer ${k.name} de la liste`}
                           title="Retirer de la liste des pilotes enregistrés"
-                          className="chamfer-sm p-1 text-dim transition-colors hover:bg-stop/15 hover:text-[#ff8a95]"
+                          className="chamfer-sm p-1 text-dim transition-colors hover:bg-stop/15 hover:text-[#ff8a95] pointer-coarse:-my-1 pointer-coarse:p-3"
                           onClick={(e) => {
                             e.stopPropagation();
                             setConfirmKey(k.nameKey);
@@ -536,8 +536,8 @@ function ResultDialog({ open, onOpenChange, detail }: { open: boolean; onOpenCha
             <legend className="mb-2 font-cond text-sm font-semibold tracking-[0.05em] text-mute">Pilote arrivé premier</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               {drivers.map((d) => (
-                <label key={d.id} className={cx("chamfer-sm flex cursor-pointer items-center gap-3 px-3 py-2.5 ring-1 ring-inset transition-colors", winner === d.id ? "bg-flame/15 ring-flame" : "bg-void ring-line-strong hover:ring-flame/50")}>
-                  <input type="radio" name="winner" className="accent-[#FF6B00]" checked={winner === d.id} onChange={() => chooseWinner(d.id)} />
+                <label key={d.id} className={cx("chamfer-sm flex cursor-pointer items-center gap-3 px-3 py-2.5 pointer-coarse:py-4 ring-1 ring-inset transition-colors", winner === d.id ? "bg-flame/15 ring-flame" : "bg-void ring-line-strong hover:ring-flame/50")}>
+                  <input type="radio" name="winner" className="h-4 w-4 accent-[#FF6B00] pointer-coarse:h-5 pointer-coarse:w-5" checked={winner === d.id} onChange={() => chooseWinner(d.id)} />
                   <span className="w-8 font-display font-bold text-mute tabular-nums">{d.number ?? "—"}</span>
                   <span className="min-w-0 flex-1 truncate font-medium">{d.name}</span>
                   <span className="text-sm text-flame-soft tabular-nums">{formatOdds(d.oddsCents)}</span>
@@ -547,14 +547,14 @@ function ResultDialog({ open, onOpenChange, detail }: { open: boolean; onOpenCha
           </fieldset>
           {winner && (
             <div>
-              <label className="flex items-center gap-2 text-sm text-mute">
-                <input type="checkbox" className="accent-[#FF6B00]" checked={withRanking} onChange={(e) => setWithRanking(e.target.checked)} />
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-mute pointer-coarse:gap-3 pointer-coarse:py-2">
+                <input type="checkbox" className="h-4 w-4 shrink-0 accent-[#FF6B00] pointer-coarse:h-5 pointer-coarse:w-5" checked={withRanking} onChange={(e) => setWithRanking(e.target.checked)} />
                 Renseigner le classement complet (informatif, sans effet sur les gains)
               </label>
               {withRanking && (
                 <ol className="mt-3 space-y-1.5">
                   {ranking.map((id, i) => (
-                    <li key={id} className="chamfer-sm flex items-center gap-3 bg-void px-3 py-2 ring-1 ring-inset ring-line">
+                    <li key={id} className="chamfer-sm flex items-center gap-3 bg-void px-3 py-2 pointer-coarse:py-1.5 ring-1 ring-inset ring-line">
                       <span className={cx("w-8 font-display font-bold tabular-nums", i === 0 ? "text-flame" : "text-mute")}>P{i + 1}</span>
                       <span className="flex-1 truncate">{byId.get(id)?.name}</span>
                       {i > 0 && (
