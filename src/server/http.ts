@@ -2,13 +2,30 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { DatabaseNotConfiguredError, getDb, type Db } from "./db/client";
 import { AppError, mapDbError } from "./errors";
+import { requireUser } from "./session";
+import type { SessionUserDTO } from "@/lib/dto";
 
-/** Enveloppe commune des routes : base, erreurs métier → JSON, jamais de fuite de secrets. */
-export async function handle<T>(fn: (db: Db) => Promise<T>, status = 200): Promise<NextResponse> {
+/**
+ * Enveloppe commune des routes de l'espace privé : session obligatoire, base,
+ * erreurs métier → JSON, jamais de fuite de secrets.
+ */
+export async function handle<T>(fn: (db: Db, user: SessionUserDTO) => Promise<T>, status = 200): Promise<NextResponse> {
+  try {
+    const db = await getDb();
+    const user = await requireUser(db);
+    const data = await fn(db, user);
+    return NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
+  } catch (e) {
+    return errorResponse(e);
+  }
+}
+
+/** Variante SANS session, réservée aux routes publiques (lecture seule). */
+export async function handlePublic<T>(fn: (db: Db) => Promise<T>): Promise<NextResponse> {
   try {
     const db = await getDb();
     const data = await fn(db);
-    return NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return errorResponse(e);
   }

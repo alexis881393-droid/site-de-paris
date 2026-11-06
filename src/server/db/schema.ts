@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigint,
   bigserial,
   boolean,
@@ -262,6 +263,67 @@ export const partnerPayouts = pgTable(
   ],
 );
 
+// ---------------------------------------------------------------------------
+// Accès à l'espace privé
+// ---------------------------------------------------------------------------
+
+/** Comptes administrateurs de l'espace privé (pseudo + mot de passe haché scrypt). */
+export const adminUsers = pgTable(
+  "admin_users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    username: text("username").notNull(),
+    /** Pseudo en minuscules : unicité insensible à la casse. */
+    usernameKey: text("username_key").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    /** Compte de l'administrateur qui a généré le code d'accès utilisé (null = code créé en local). */
+    invitedBy: uuid("invited_by").references((): AnyPgColumn => adminUsers.id, { onDelete: "set null" }),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    lastLoginAt: ts("last_login_at"),
+    /** Anti force brute : échecs consécutifs et blocage temporaire. */
+    failedLogins: integer("failed_logins").notNull().default(0),
+    lockedUntil: ts("locked_until"),
+  },
+  (t) => [
+    unique("admin_users_username_key").on(t.usernameKey),
+    check("admin_users_username_len", sql`length(${t.username}) between 3 and 24`),
+  ],
+);
+
+/** Codes d'accès à usage unique permettant de créer un compte. Seule l'empreinte SHA-256 est stockée. */
+export const accessCodes = pgTable(
+  "access_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    codeHash: text("code_hash").notNull(),
+    /** 4 derniers caractères, pour reconnaître le code dans la liste. */
+    hint: text("hint").notNull(),
+    createdBy: uuid("created_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    usedAt: ts("used_at"),
+    usedBy: uuid("used_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    revokedAt: ts("revoked_at"),
+  },
+  (t) => [unique("access_codes_hash_key").on(t.codeHash)],
+);
+
+/** Sessions de connexion. L'identifiant est l'empreinte SHA-256 du jeton du cookie. */
+export const adminSessions = pgTable(
+  "admin_sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: "cascade" }),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    expiresAt: ts("expires_at").notNull(),
+  },
+  (t) => [index("admin_sessions_user_idx").on(t.userId)],
+);
+
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type AccessCode = typeof accessCodes.$inferSelect;
+
 export const OPERATION_TYPES = [
   "race_created",
   "race_deleted",
@@ -279,6 +341,10 @@ export const OPERATION_TYPES = [
   "race_completed",
   "partners_updated",
   "partner_paid",
+  "account_created",
+  "account_deleted",
+  "access_code_created",
+  "access_code_revoked",
   "backup_created",
   "backup_failed",
 ] as const;

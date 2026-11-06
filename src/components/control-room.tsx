@@ -4,8 +4,9 @@ import * as Popover from "@radix-ui/react-popover";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, ChevronDown, Flag, History, Plus, Ticket, Users } from "lucide-react";
-import { useRace, useRaces } from "@/lib/api-client";
+import { BarChart3, ChevronDown, Eye, Flag, History, KeyRound, LogOut, Plus, Ticket, UserRound, Users } from "lucide-react";
+import { api, useRace, useRaces } from "@/lib/api-client";
+import type { SessionUserDTO } from "@/lib/dto";
 import { formatDateTime, formatMoney, formatPercentBps } from "@/lib/format";
 import { ACTIVE_STATUSES } from "@/lib/status";
 import { Logo } from "./logo";
@@ -14,17 +15,19 @@ import { Button, EmptyState, ICON, Spinner, StatusBadge, cx } from "./ui";
 import { DriversTab } from "./tabs/drivers-tab";
 import { BetsTab } from "./tabs/bets-tab";
 import { AccountingTab } from "./tabs/accounting-tab";
+import { AccountsTab } from "./tabs/accounts-tab";
 
 const TABS = [
   { id: "pilotes", label: "Pilotes", icon: Users, key: "1" },
   { id: "paris", label: "Paris", icon: Ticket, key: "2" },
   { id: "comptabilite", label: "Comptabilité", icon: BarChart3, key: "3" },
+  { id: "comptes", label: "Comptes", icon: KeyRound, key: "4" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
 const STORAGE_KEY = "racebet:lastRace";
 
-export function ControlRoom() {
+export function ControlRoom({ user }: { user: SessionUserDTO }) {
   const router = useRouter();
   const params = useSearchParams();
   const tab = (TABS.some((t) => t.id === params.get("tab")) ? params.get("tab") : "pilotes") as TabId;
@@ -86,6 +89,14 @@ export function ControlRoom() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [setParam]);
+
+  async function logout() {
+    try {
+      await api("/api/auth/logout", { method: "POST" });
+    } finally {
+      window.location.assign("/admin");
+    }
+  }
 
   const activeRaces = races?.filter((r) => ACTIVE_STATUSES.includes(r.status)) ?? [];
 
@@ -151,6 +162,21 @@ export function ControlRoom() {
           </Popover.Root>
 
           <div className="ml-auto flex items-center gap-2">
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener"
+              title="Ouvrir la page publique des cotes"
+              className="chamfer-sm hidden h-10 items-center gap-2 px-3 text-sm text-mute transition-colors hover:bg-white/5 hover:text-ink pointer-coarse:h-12 sm:flex"
+            >
+              <Eye className="h-4 w-4" {...ICON} />
+              <span className="hidden xl:inline">Vue publique</span>
+            </a>
+            <span className="hidden items-center gap-1.5 text-sm text-mute md:flex" title="Compte connecté">
+              <UserRound className="h-4 w-4 text-flame" {...ICON} />
+              <span className="max-w-[9rem] truncate font-medium text-ink">{user.username}</span>
+            </span>
+            <Button variant="ghost" icon={<LogOut className="h-4 w-4" {...ICON} />} onClick={logout} title="Se déconnecter" aria-label="Se déconnecter" />
             <Button variant="ghost" icon={<History className="h-4 w-4" {...ICON} />} onClick={() => setManagerOpen(true)} title="Historique des courses (H)">
               <span className="hidden lg:inline">Historique</span>
             </Button>
@@ -167,12 +193,17 @@ export function ControlRoom() {
           <ConnectionError message={racesError.message} />
         ) : !races ? (
           <div className="grid place-items-center py-32"><Spinner className="h-7 w-7" /></div>
-        ) : races.length === 0 ? (
+        ) : races.length === 0 && tab !== "comptes" ? (
           <div className="mt-10">
             <EmptyState
               icon={<Flag className="h-6 w-6" {...ICON} />}
               title="Aucune course pour l'instant"
-              action={<Button size="lg" icon={<Plus className="h-4 w-4" {...ICON} />} onClick={() => setNewOpen(true)}>Créer la première course</Button>}
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button size="lg" icon={<Plus className="h-4 w-4" {...ICON} />} onClick={() => setNewOpen(true)}>Créer la première course</Button>
+                  <Button size="lg" variant="ghost" icon={<KeyRound className="h-4 w-4" {...ICON} />} onClick={() => setParam("tab", "comptes")}>Comptes</Button>
+                </div>
+              }
             >
               Créez une course, ajoutez ses pilotes, puis ouvrez les paris. Chaque course a sa propre cagnotte et sa propre comptabilité.
             </EmptyState>
@@ -196,7 +227,7 @@ export function ControlRoom() {
                   </Tabs.Trigger>
                 ))}
               </Tabs.List>
-              {current && tab !== "comptabilite" && (
+              {current && tab !== "comptabilite" && tab !== "comptes" && (
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-mute">
                   <span>{current.scheduledAt ? formatDateTime(current.scheduledAt) : "Date libre"}</span>
                   <span>Commission <b className="font-semibold text-ink">{formatPercentBps(current.commissionBps)}</b></span>
@@ -220,6 +251,9 @@ export function ControlRoom() {
                   <Tabs.Content value="comptabilite" className="focus:outline-none">
                     <AccountingTab detail={detail ?? null} onSelectRace={(id) => selectRace(id)} />
                   </Tabs.Content>
+                  <Tabs.Content value="comptes" className="focus:outline-none">
+                    {tab === "comptes" && <AccountsTab />}
+                  </Tabs.Content>
                 </>
               )}
             </div>
@@ -228,7 +262,7 @@ export function ControlRoom() {
       </main>
 
       <footer className="mx-auto max-w-[1500px] px-4 pb-[max(2rem,env(safe-area-inset-bottom))] text-xs text-dim sm:px-6 md:px-8 xl:px-6">
-        Outil de comptabilité de paris fictifs en dollars FiveM, non convertibles en argent réel. Accès sans authentification : toute personne disposant de l&apos;adresse peut consulter et agir.
+        Outil de comptabilité de paris fictifs en dollars FiveM, non convertibles en argent réel. Espace privé : accès réservé aux comptes créés avec un code d&apos;accès.
       </footer>
 
       <NewRaceDialog open={newOpen} onOpenChange={setNewOpen} onCreated={(r) => {

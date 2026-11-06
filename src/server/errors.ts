@@ -13,6 +13,8 @@ export type ErrorCode =
   | "DB_NOT_CONFIGURED"
   | "CONFLICT"
   | "UNAUTHORIZED"
+  | "FORBIDDEN"
+  | "RATE_LIMITED"
   | "INTERNAL";
 
 const STATUS: Record<ErrorCode, number> = {
@@ -30,6 +32,8 @@ const STATUS: Record<ErrorCode, number> = {
   DB_NOT_CONFIGURED: 503,
   CONFLICT: 409,
   UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  RATE_LIMITED: 429,
   INTERNAL: 500,
 };
 
@@ -75,6 +79,7 @@ export function mapDbError(err: unknown): AppError | null {
     if (constraint === "drivers_race_number_key")
       return new AppError("DUPLICATE_NUMBER", "Ce numéro est déjà attribué à un autre pilote de la course.");
     if (constraint === "bets_request_id_key") return new AppError("CONFLICT", "Requête déjà traitée.");
+    if (constraint === "admin_users_username_key") return new AppError("CONFLICT", "Ce pseudo est déjà pris.");
     return new AppError("CONFLICT", "Doublon refusé par la base de données.");
   }
   if (code === "42P01" || code === "42883") {

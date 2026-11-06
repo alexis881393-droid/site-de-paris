@@ -26,6 +26,19 @@ Panneau de contrôle pour la **comptabilité des paris fictifs** sur les courses
 
 ## 1. Fonctionnalités
 
+**Deux parties** :
+
+| Adresse | Accès | Contenu |
+|---|---|---|
+| `/` | public, sans connexion | Cotes des pilotes en direct et leur évolution (graphique), encart « paris en espèces uniquement ». Aucune donnée de parieur (nom, téléphone, montant). Courses visibles : paris ouverts, clôturés ou résultat connu. |
+| `/admin` | privé, compte obligatoire | Tout le reste : pilotes, paris, comptabilité, associés, et l'onglet **Comptes** (`4`). |
+
+**Comptes de l'espace privé** : chaque administrateur crée son compte (pseudo + mot de passe) avec un **code d'accès à usage unique** (`RB-XXXX-XXXX-XXXX`).
+- Premier code : `npm run admin:code` depuis votre PC (voir « Commandes utiles »).
+- Codes suivants : onglet **Comptes** → « Générer un code ». Le code complet n'est affiché qu'une fois ; seule son empreinte SHA-256 est stockée. Un code inutilisé peut être révoqué.
+- L'onglet liste les comptes créés (date, qui a invité, dernière connexion) et permet de supprimer un autre compte (ses sessions sont fermées).
+- Mots de passe hachés avec scrypt ; 5 échecs de connexion consécutifs bloquent le compte 15 min ; session de 30 jours dans un cookie `httpOnly`, `SameSite=Lax`, `Secure` en production.
+
 **En-tête** : logo, sélecteur de course active, statut, bouton « Nouvelle course », historique de toutes les courses (recherche, filtre par statut, suppression).
 
 **Suppression d'une course** (Historique → Supprimer) : possible pour une course en préparation, terminée (paiements ou remboursements terminés) ou sans aucun pari. Refusée tant que des gains ou remboursements sont dus (contrôlé aussi en base par `racebet_purge_race`). Pour une course avec des paris, il faut taper `SUPPRIMER`. La course disparaît de la comptabilité ; un résumé reste dans le journal des opérations.
@@ -145,6 +158,12 @@ npm run reset:keep -- "Liste noire"           # aperçu, ne modifie rien
 npm run reset:keep -- "Liste noire" --apply   # demande de taper REMETTRE A ZERO
 ```
 
+Code d'accès à l'espace privé (usage unique, affiché une seule fois ; la base visée est celle de `DATABASE_URL`) :
+
+```powershell
+npm run admin:code
+```
+
 ---
 
 ## 5. Base de données Neon
@@ -249,7 +268,7 @@ Sauvegarde locale en ligne de commande : `npm run backup:local` (écrit dans `.\
 
 ### Restauration (script local uniquement)
 
-La restauration n'existe **pas** sur le site (aucun bouton destructeur accessible sans authentification). Elle se fait depuis votre PC :
+La restauration n'existe **pas** sur le site (aucun bouton destructeur sur le site). Elle se fait depuis votre PC :
 
 ```powershell
 # 1. Vérifier un fichier sans rien écrire
@@ -298,7 +317,8 @@ Vérifié manuellement sur le serveur de production local : `PUT` / `PATCH` / `D
 
 ## 11. Sécurité et limites
 
-- **Pas d'authentification (choix demandé)** : toute personne connaissant l'URL peut consulter les données **et effectuer des actions** (créer une course, enregistrer un pari, marquer un paiement…). Ce n'est pas un dispositif sécurisé. Ne diffusez l'adresse qu'aux organisateurs. Le site demande aux moteurs de recherche de ne pas l'indexer.
+- **Espace privé** : toutes les routes API (sauf `/api/public/odds` et `/api/auth/*`) exigent une session valide, vérifiée côté serveur à chaque requête, en plus de la page `/admin`. La page publique n'expose que les noms des pilotes et les cotes. Le site demande aux moteurs de recherche de ne pas l'indexer.
+- **Codes d'accès** : quiconque détient un code inutilisé peut créer un compte. Transmettez-les en privé et révoquez ceux qui ne servent plus. Les comptes et codes ne sont pas inclus dans les sauvegardes JSON.
 - Les garde-fous comptables (paris immuables, commission figée, transitions de statut, paiements uniques) sont appliqués **en base de données**, donc même contre un appel direct à l'API.
 - Les secrets (`DATABASE_URL`, clés R2, `CRON_SECRET`) restent côté serveur.
 - Le contournement des triggers (`racebet.maintenance`) n'est utilisé que par le script local de restauration ; l'application web ne l'active jamais.

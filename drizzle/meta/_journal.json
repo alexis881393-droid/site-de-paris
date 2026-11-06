@@ -29,6 +29,13 @@
       "when": 1793985613464,
       "tag": "0003_partners",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793991530713,
+      "tag": "0004_auth",
+      "breakpoints": true
     }
   ]
 }

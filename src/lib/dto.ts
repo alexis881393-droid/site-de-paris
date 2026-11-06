@@ -144,3 +144,53 @@ export type BackupStatusDTO = {
   lastFailureAt: string | null;
   lastFailureMessage: string | null;
 };
+
+// ---------------------------------------------------------------------------
+// Espace privé
+// ---------------------------------------------------------------------------
+
+export type SessionUserDTO = { id: string; username: string };
+
+export type AccountDTO = {
+  id: string;
+  username: string;
+  createdAt: string;
+  lastLoginAt: string | null;
+  /** Pseudo de l'administrateur qui a généré le code utilisé (null = code créé en local). */
+  invitedBy: string | null;
+  isMe: boolean;
+};
+
+export type AccessCodeDTO = {
+  id: string;
+  /** 4 derniers caractères du code. */
+  hint: string;
+  createdAt: string;
+  createdBy: string | null;
+  status: "active" | "used" | "revoked";
+  usedAt: string | null;
+  usedBy: string | null;
+  revokedAt: string | null;
+};
+
+export type AccountsOverviewDTO = { me: SessionUserDTO; users: AccountDTO[]; codes: AccessCodeDTO[] };
+
+// ---------------------------------------------------------------------------
+// Vue publique
+// ---------------------------------------------------------------------------
+
+export type PublicRaceDTO = { id: string; name: string; status: RaceStatus; scheduledAt: string | null };
+
+export type PublicDriverDTO = { id: string; name: string; number: number | null; oddsCents: number | null; isWinner: boolean };
+
+export type PublicOddsDTO = {
+  races: PublicRaceDTO[];
+  race:
+    | (PublicRaceDTO & {
+        drivers: PublicDriverDTO[];
+        /** Évolution des cotes : un point après chaque pari (cotes en centièmes, null = aucune mise). */
+        history: { t: string; odds: Record<string, number | null> }[];
+        serverTime: string;
+      })
+    | null;
+};

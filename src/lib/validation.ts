@@ -122,3 +122,32 @@ export const partnersSchema = z.object({
     .refine((list) => new Set(list.map((p) => p.id)).size === list.length, "Associé en double."),
 });
 export type PartnersInput = z.input<typeof partnersSchema>;
+
+// ---------------------------------------------------------------------------
+// Espace privé
+// ---------------------------------------------------------------------------
+
+export const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, "Pseudo : 3 caractères minimum")
+  .max(24, "Pseudo : 24 caractères maximum")
+  .regex(/^[\p{L}\p{N}_.-]+$/u, "Pseudo : lettres, chiffres, « _ », « . » ou « - » uniquement (sans espace)");
+
+export const passwordSchema = z
+  .string()
+  .min(8, "Mot de passe : 8 caractères minimum")
+  .max(128, "Mot de passe : 128 caractères maximum");
+
+export const registerSchema = z.object({
+  code: z.string().trim().min(1, "Code d'accès requis").max(40),
+  username: usernameSchema,
+  password: passwordSchema,
+});
+export type RegisterInput = z.input<typeof registerSchema>;
+
+export const loginSchema = z.object({
+  username: z.string().trim().min(1, "Pseudo requis").max(24),
+  password: z.string().min(1, "Mot de passe requis").max(128),
+});
+export type LoginInput = z.input<typeof loginSchema>;
