@@ -14,7 +14,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed-demo": "tsx scripts/seed-demo.ts",
     "backup:local": "tsx scripts/backup-local.ts",
-    "restore": "tsx scripts/restore.ts"
+    "restore": "tsx scripts/restore.ts",
+    "reset:keep": "tsx scripts/reset-keep-race.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

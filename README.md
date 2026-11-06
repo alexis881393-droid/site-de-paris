@@ -138,6 +138,13 @@ npm run build       # build de production
 npm start           # lance le build de production en local
 ```
 
+Remise à zéro en gardant une seule course et ses pilotes (sauvegarde automatique dans `.ackups\` avant effacement) :
+
+```powershell
+npm run reset:keep -- "Liste noire"           # aperçu, ne modifie rien
+npm run reset:keep -- "Liste noire" --apply   # demande de taper REMETTRE A ZERO
+```
+
 ---
 
 ## 5. Base de données Neon
