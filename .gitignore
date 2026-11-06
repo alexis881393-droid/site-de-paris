@@ -1,0 +1,34 @@
+# Dépendances
+node_modules/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Environnement (ne jamais commiter de secrets)
+.env
+.env.local
+.env.*.local
+.env.production
+!.env.example
+
+# Base locale de développement (PGlite)
+.pglite/
+
+# Sauvegardes locales
+backups/
+
+# Tests / outils
+coverage/
+playwright-report/
+test-results/
+.vercel/
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

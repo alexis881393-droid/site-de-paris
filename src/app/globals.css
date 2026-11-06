@@ -1,0 +1,181 @@
+@import "tailwindcss";
+
+/* =====================================================================
+   RACEBET CONTROL — système visuel
+   Noir dominant, orange identitaire, angles chanfreinés (plaques HUD).
+   ===================================================================== */
+
+@theme {
+  --color-void: #070707;
+  --color-pit: #101012;
+  --color-plate: #151518;
+  --color-plate-2: #1b1b1f;
+  --color-line: #26262b;
+  --color-line-strong: #34343a;
+  --color-ink: #f5f5f5;
+  --color-mute: #929298;
+  --color-dim: #5d5d63;
+  --color-flame: #ff6b00;
+  --color-flame-hot: #ff8c00;
+  --color-flame-soft: #ffb15c;
+  --color-go: #3ddc84;
+  --color-stop: #ff3b4e;
+  --color-caution: #ffd23f;
+
+  --font-display: var(--font-chakra), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-barlow), ui-sans-serif, system-ui, sans-serif;
+  --font-cond: var(--font-barlow-cond), var(--font-barlow), ui-sans-serif, sans-serif;
+
+  --ease-snap: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-rise: rise 220ms var(--ease-out-quint) both;
+  --animate-pulse-dot: pulse-dot 1.6s var(--ease-snap) infinite;
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px) scale(0.985); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgb(255 107 0 / 0.55); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 5px rgb(255 107 0 / 0); }
+  }
+}
+
+:root {
+  color-scheme: dark;
+  --chamfer: 10px;
+}
+
+html {
+  background: var(--color-void);
+}
+
+body {
+  overflow-x: clip;
+  background: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+
+/* Trame de fond : grille fine + lignes de vitesse, fixe et non interactive. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.022) 1px, transparent 1px),
+    repeating-linear-gradient(-62deg, transparent 0 140px, rgb(255 107 0 / 0.025) 140px 141px, transparent 141px 300px);
+  background-size: 48px 48px, 48px 48px, auto;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 30%, transparent 85%);
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: -20% -10% auto -10%;
+  height: 60vh;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 50% 60% at 50% 0%, rgb(255 107 0 / 0.09), transparent 70%);
+}
+
+::selection {
+  background: rgb(255 107 0 / 0.35);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-flame-hot);
+  outline-offset: 2px;
+}
+
+/* Plaques chanfreinées : coin supérieur droit et inférieur gauche coupés. */
+.chamfer {
+  clip-path: polygon(0 0, calc(100% - var(--chamfer)) 0, 100% var(--chamfer), 100% 100%, var(--chamfer) 100%, 0 calc(100% - var(--chamfer)));
+}
+.chamfer-sm {
+  --chamfer: 6px;
+  clip-path: polygon(0 0, calc(100% - var(--chamfer)) 0, 100% var(--chamfer), 100% 100%, var(--chamfer) 100%, 0 calc(100% - var(--chamfer)));
+}
+
+/* Bordure lumineuse d'une plaque chanfreinée (bordure dessinée par un fond dégradé + padding 1px). */
+.plate-frame {
+  background: linear-gradient(135deg, rgb(255 107 0 / 0.55), rgb(255 255 255 / 0.07) 28%, rgb(255 255 255 / 0.05) 72%, rgb(255 107 0 / 0.35));
+  padding: 1px;
+}
+.plate-frame-quiet {
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.04) 40%, rgb(255 255 255 / 0.08));
+  padding: 1px;
+}
+.plate-core {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 40%),
+    var(--color-plate);
+}
+
+.text-glow {
+  text-shadow: 0 0 18px rgb(255 107 0 / 0.45), 0 0 2px rgb(255 140 0 / 0.6);
+}
+
+/* Barre de progression "piste" */
+.track-bar {
+  background: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.05) 0 6px, transparent 6px 8px);
+}
+
+/* Tableaux */
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-pit);
+  font-family: var(--font-cond);
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--color-mute);
+  text-align: left;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--color-line);
+  white-space: nowrap;
+}
+.data-table tbody td {
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.045);
+  vertical-align: middle;
+}
+.data-table tbody tr {
+  transition: background-color 160ms var(--ease-snap);
+}
+.data-table tbody tr:hover {
+  background: rgb(255 107 0 / 0.045);
+}
+.data-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Barres de défilement discrètes */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #34343a transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
