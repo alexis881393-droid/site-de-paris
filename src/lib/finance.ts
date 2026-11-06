@@ -191,3 +191,30 @@ export const toNumber = (v: bigint): number => {
   if (!Number.isSafeInteger(n)) throw new Error("Montant hors limites");
   return n;
 };
+
+/**
+ * Répartit un montant entier entre des parts exprimées en points de base (total 10 000).
+ * Arrondi par plus grands restes : la somme des parts vaut toujours exactement `total`.
+ * Départage des restes égaux : position la plus petite d'abord (ordre stable).
+ */
+export function splitByShares<T extends { shareBps: number; position: number }>(
+  total: bigint | number,
+  shares: T[],
+): { item: T; amount: bigint }[] {
+  const t = BigInt(total);
+  const sumBps = shares.reduce((s, x) => s + BigInt(x.shareBps), 0n);
+  if (t < 0n) throw new RangeError("Montant négatif.");
+  if (shares.length === 0 || sumBps === 0n) return shares.map((item) => ({ item, amount: 0n }));
+  const rows = shares.map((item) => {
+    const num = t * BigInt(item.shareBps);
+    return { item, amount: num / sumBps, rest: num % sumBps };
+  });
+  let left = t - rows.reduce((s, r) => s + r.amount, 0n);
+  const order = [...rows].sort((a, b) => (a.rest === b.rest ? a.item.position - b.item.position : a.rest > b.rest ? -1 : 1));
+  for (const r of order) {
+    if (left <= 0n) break;
+    r.amount += 1n;
+    left -= 1n;
+  }
+  return rows.map(({ item, amount }) => ({ item, amount }));
+}

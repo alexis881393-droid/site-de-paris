@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { eq, sql } from "drizzle-orm";
 import { createTestDb, setupOpenRace } from "./helpers";
 import type { Db } from "@/server/db/client";
-import { bets, drivers, races, settlements } from "@/server/db/schema";
+import { bets, drivers, partnerPayouts, races, settlements } from "@/server/db/schema";
 import {
   addDriver,
   cancelRace,
@@ -11,13 +11,15 @@ import {
   deleteRace,
   hideKnownDriver,
   openBets,
+  payPartnerShare,
   paySettlement,
   placeBet,
   recordResult,
   removeDriver,
   updateDriver,
+  updatePartners,
 } from "@/server/services/commands";
-import { getGlobalAccounting, getRaceDetail, listKnownDrivers } from "@/server/services/queries";
+import { getGlobalAccounting, getPartnersOverview, getRaceDetail, listKnownDrivers } from "@/server/services/queries";
 import { buildBackup, verifyBackup } from "@/server/backup/export";
 import { restoreBackup } from "@/server/backup/restore";
 import { AppError, pgErrorInfo } from "@/server/errors";
@@ -399,5 +401,78 @@ describe("Tests 10 & 12 — persistance et sauvegarde", () => {
     // Fichier altéré refusé
     json.data.bets[0].amount = 1;
     expect(verifyBackup(json).ok).toBe(false);
+  });
+});
+
+describe("Redistribution des bénéfices entre associés", () => {
+  async function raceWithProfit(name = "GP Associés") {
+    const { race, drivers: [A, B] } = await setupOpenRace(db, { name, commission: "10" });
+    await placeBet(db, race.id, { bettorName: "G", driverId: A!.id, amount: 50_000 });
+    await placeBet(db, race.id, { bettorName: "P", driverId: B!.id, amount: 50_003 });
+    await closeBets(db, race.id);
+    await recordResult(db, race.id, { winnerDriverId: A!.id });
+    return race; // bénéfice = commission 10 % de 100 003 = 10 000
+  }
+
+  it("4 associés à 25 % par défaut, répartition provisoire puis figée au premier versement", async () => {
+    const race = await raceWithProfit();
+    let o = await getPartnersOverview(db);
+    expect(o.partners.map((p) => p.shareBps)).toEqual([2500, 2500, 2500, 2500]);
+    expect(o.sharesValid).toBe(true);
+    const r = o.races.find((x) => x.raceId === race.id)!;
+    expect(r.revenue).toBe(10_000);
+    expect(r.locked).toBe(false);
+    expect(r.shares.map((s) => s.amount)).toEqual([2500, 2500, 2500, 2500]);
+
+    const [p1, p2, p3, p4] = o.partners;
+    const first = await payPartnerShare(db, race.id, p1!.id);
+    const again = await payPartnerShare(db, race.id, p1!.id);
+    expect(first.alreadyPaid).toBe(false);
+    expect(again.alreadyPaid).toBe(true);
+
+    // Changer les parts ensuite ne modifie pas une course déjà figée.
+    await updatePartners(db, {
+      partners: [
+        { id: p1!.id, name: "Tony", shareBps: 4000 },
+        { id: p2!.id, name: "Lena", shareBps: 2000 },
+        { id: p3!.id, name: "Marco", shareBps: 2000 },
+        { id: p4!.id, name: "Ines", shareBps: 2000 },
+      ],
+    });
+    o = await getPartnersOverview(db);
+    const locked = o.races.find((x) => x.raceId === race.id)!;
+    expect(locked.locked).toBe(true);
+    expect(locked.shares.map((s) => [s.name, s.amount, s.status])).toEqual([
+      ["Associé 1", 2500, "paid"],
+      ["Associé 2", 2500, "pending"],
+      ["Associé 3", 2500, "pending"],
+      ["Associé 4", 2500, "pending"],
+    ]);
+    // Une nouvelle course utilise les nouvelles parts.
+    const other = await raceWithProfit("GP 2");
+    const fresh = (await getPartnersOverview(db)).races.find((x) => x.raceId === other.id)!;
+    expect(fresh.shares.map((s) => [s.name, s.amount])).toEqual([["Tony", 4000], ["Lena", 2000], ["Marco", 2000], ["Ines", 2000]]);
+
+    // Montant figé en base : modification directe refusée.
+    await dbRejects(db.update(partnerPayouts).set({ amount: 1 }).where(eq(partnerPayouts.raceId, race.id)), /RB_PARTNER_PAYOUT_IMMUTABLE/);
+    await dbRejects(db.delete(partnerPayouts), /RB_PARTNER_PAYOUT_IMMUTABLE/);
+
+    // Suppression de la course refusée tant que des parts restent à verser.
+    const d = await getRaceDetail(db, race.id);
+    await paySettlement(db, d.bets.find((b) => b.settlement)!.settlement!.id);
+    await expectCode(deleteRace(db, race.id), "RACE_STATE");
+    for (const p of [p2, p3, p4]) await payPartnerShare(db, race.id, p!.id);
+    await deleteRace(db, race.id);
+    expect(await db.select().from(partnerPayouts).where(eq(partnerPayouts.raceId, race.id))).toHaveLength(0);
+  });
+
+  it("parts invalides refusées ; versement impossible sans résultat", async () => {
+    const o = await getPartnersOverview(db);
+    await expectCode(
+      updatePartners(db, { partners: o.partners.map((p) => ({ id: p.id, name: p.name, shareBps: 2000 })) }),
+      "VALIDATION",
+    );
+    const { race } = await setupOpenRace(db);
+    await expectCode(payPartnerShare(db, race.id, o.partners[0]!.id), "RACE_STATE");
   });
 });

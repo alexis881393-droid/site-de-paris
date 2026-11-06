@@ -8,6 +8,7 @@ import type { RaceAccounting } from "@/lib/accounting";
 import { RACE_STATUSES, type RaceStatus } from "@/lib/constants";
 import { RACE_STATUS_LABEL } from "@/lib/status";
 import { formatDate, formatDateTime, formatMoney, formatPercentBps } from "@/lib/format";
+import { RacePartnersPanel, remainingForRace } from "./partners";
 import { EmptyState, buttonClasses, ICON, Input, Plate, SectionTitle, Select, Spinner, Stat, StatusBadge, Tag, cx } from "../ui";
 
 export function AccountingTab({ detail, onSelectRace }: { detail: RaceDetailDTO | null; onSelectRace: (id: string) => void }) {
@@ -27,7 +28,7 @@ export function AccountingTab({ detail, onSelectRace }: { detail: RaceDetailDTO 
 
   return (
     <div className="space-y-10">
-      {detail && <RacePanel detail={detail} />}
+      {detail && <RacePanel detail={detail} partners={data?.partners} />}
 
       <section>
         <SectionTitle
@@ -62,7 +63,7 @@ export function AccountingTab({ detail, onSelectRace }: { detail: RaceDetailDTO 
   );
 }
 
-function RacePanel({ detail }: { detail: RaceDetailDTO }) {
+function RacePanel({ detail, partners }: { detail: RaceDetailDTO; partners?: GlobalAccountingDTO["partners"] }) {
   const a = detail.accounting;
   const { race } = detail;
   const cancelled = race.status === "cancelled" || race.status === "refunded";
@@ -107,13 +108,18 @@ function RacePanel({ detail }: { detail: RaceDetailDTO }) {
             <Line label="Somme déjà versée" value={a.paidToWinners} />
             <Line label="Reste à payer" value={a.remainingToPay} strong={a.remainingToPay > 0} />
             <Line label="Conservé (aucun gagnant)" value={a.noWinnerKept} />
-            <Line label="Remboursements dus" value={a.refundsDue} />
-            <Line label="Remboursements effectués" value={a.refundsPaid} />
-            <Line label="Reste à rembourser" value={a.refundsRemaining} strong={a.refundsRemaining > 0} />
+            {cancelled && (
+              <>
+                <Line label="Remboursements dus" value={a.refundsDue} />
+                <Line label="Remboursements effectués" value={a.refundsPaid} />
+                <Line label="Reste à rembourser" value={a.refundsRemaining} strong={a.refundsRemaining > 0} />
+              </>
+            )}
             <Line label="Montant total conservé par l'organisateur" value={a.organizerRevenue} pending="Non déterminé" strong />
           </dl>
         </Plate>
       </div>
+      {!cancelled && partners && <RacePartnersPanel overview={partners} raceId={race.id} pending={a.organizerRevenue === null} />}
     </section>
   );
 }
@@ -131,6 +137,10 @@ function Line({ label, value, strong, pending = "—" }: { label: string; value:
 
 function GlobalView({ data, onSelectRace }: { data: GlobalAccountingDTO; onSelectRace: (id: string) => void }) {
   const g = data.global;
+  const visibleIds = useMemo(() => new Set(data.races.map((r) => r.id)), [data.races]);
+  const partnerRaces = data.partners.races.filter((r) => visibleIds.has(r.raceId));
+  const partnersDue = partnerRaces.reduce((s, r) => s + r.revenue, 0);
+  const partnersPaid = partnerRaces.reduce((s, r) => s + r.shares.reduce((x, sh) => x + (sh.status === "paid" ? sh.amount : 0), 0), 0);
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr]">
@@ -161,10 +171,16 @@ function GlobalView({ data, onSelectRace }: { data: GlobalAccountingDTO; onSelec
         <Plate><div className="grid grid-cols-2 gap-4 p-5">
           <Stat label="Gains restant à payer" value={formatMoney(g.remainingToPay)} accent={g.remainingToPay > 0} />
           <Stat label="Gains déjà versés" value={formatMoney(g.paidToWinners)} />
+          {(g.refundsRemaining > 0 || g.refundsPaid > 0) && (
+            <>
+              <Stat label="Remboursements restants" value={formatMoney(g.refundsRemaining)} accent={g.refundsRemaining > 0} />
+              <Stat label="Mises remboursées" value={formatMoney(g.refundsPaid)} />
+            </>
+          )}
         </div></Plate>
         <Plate><div className="grid grid-cols-2 gap-4 p-5">
-          <Stat label="Remboursements restants" value={formatMoney(g.refundsRemaining)} accent={g.refundsRemaining > 0} />
-          <Stat label="Mises remboursées" value={formatMoney(g.refundsPaid)} />
+          <Stat label="Reste à verser aux associés" value={formatMoney(partnersDue - partnersPaid)} accent={partnersDue - partnersPaid > 0} />
+          <Stat label="Déjà versé aux associés" value={formatMoney(partnersPaid)} />
         </div></Plate>
       </div>
 
@@ -173,7 +189,7 @@ function GlobalView({ data, onSelectRace }: { data: GlobalAccountingDTO; onSelec
         <BarChart title="Revenu acquis par jour de course" rows={data.daily.map((d) => ({ key: d.day, value: d.revenue }))} />
       </div>
 
-      <RaceTable rows={data.races} onSelectRace={onSelectRace} />
+      <RaceTable rows={data.races} partners={data.partners} onSelectRace={onSelectRace} />
       <BackupPanel data={data} />
     </div>
   );
@@ -243,7 +259,8 @@ function BarChart({ title, rows }: { title: string; rows: { key: string; value: 
   );
 }
 
-function RaceTable({ rows, onSelectRace }: { rows: AccountingRowDTO[]; onSelectRace: (id: string) => void }) {
+function RaceTable({ rows, partners, onSelectRace }: { rows: AccountingRowDTO[]; partners: GlobalAccountingDTO["partners"]; onSelectRace: (id: string) => void }) {
+  const byRace = new Map(partners.races.map((r) => [r.raceId, r]));
   if (rows.length === 0) {
     return <Plate><EmptyState icon={<Search className="h-6 w-6" {...ICON} />} title="Aucune course sur ces critères">Modifiez la période, le statut ou la recherche.</EmptyState></Plate>;
   }
@@ -262,7 +279,7 @@ function RaceTable({ rows, onSelectRace }: { rows: AccountingRowDTO[]; onSelectR
               <th className="num">Comm. acquise</th>
               <th className="num">Dû gagnants</th>
               <th className="num">Reste à payer</th>
-              <th className="num">Reste à rembourser</th>
+              <th className="num">Reste aux associés</th>
               <th className="num">Revenu</th>
             </tr>
           </thead>
@@ -282,7 +299,13 @@ function RaceTable({ rows, onSelectRace }: { rows: AccountingRowDTO[]; onSelectR
                   <td className="num">{a.noWinner ? <Tag tone="result">Sans gagnant</Tag> : cell(a, a.commissionKept)}</td>
                   <td className="num">{formatMoney(a.dueToWinners)}</td>
                   <td className={cx("num", a.remainingToPay > 0 && "text-flame")}>{formatMoney(a.remainingToPay)}</td>
-                  <td className={cx("num", a.refundsRemaining > 0 && "text-caution")}>{formatMoney(a.refundsRemaining)}</td>
+                  <td className="num">
+                    {a.refundsRemaining > 0 ? (
+                      <span className="text-caution" title="Remboursements restant à effectuer">{formatMoney(a.refundsRemaining)} <span className="text-xs">à rembourser</span></span>
+                    ) : (
+                      <span className={cx(remainingForRace(byRace.get(r.id)) > 0 && "text-flame")}>{formatMoney(remainingForRace(byRace.get(r.id)))}</span>
+                    )}
+                  </td>
                   <td className="num font-display font-semibold text-flame-soft">{cell(a, a.organizerRevenue)}</td>
                 </tr>
               );
@@ -299,6 +322,7 @@ function ExportButtons() {
     { href: "/api/export/csv?type=courses", label: "CSV courses", icon: FileSpreadsheet, v: "ghost" as const },
     { href: "/api/export/csv?type=paris", label: "CSV paris", icon: FileSpreadsheet, v: "ghost" as const },
     { href: "/api/export/csv?type=reglements", label: "CSV règlements", icon: FileSpreadsheet, v: "ghost" as const },
+    { href: "/api/export/csv?type=associes", label: "CSV associés", icon: FileSpreadsheet, v: "ghost" as const },
   ];
   return (
     <>

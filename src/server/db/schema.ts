@@ -206,6 +206,62 @@ export const settlements = pgTable(
   ],
 );
 
+/**
+ * Associés qui se partagent le bénéfice des courses (4 places fixes).
+ * La somme des parts vaut 100 % (contrôlée par le service à chaque modification).
+ */
+export const partners = pgTable(
+  "partners",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    position: integer("position").notNull(),
+    name: text("name").notNull(),
+    /** Part du bénéfice en points de base (2 500 = 25 %). */
+    shareBps: integer("share_bps").notNull(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("partners_position_key").on(t.position),
+    check("partners_position_range", sql`${t.position} between 1 and 4`),
+    check("partners_share_range", sql`${t.shareBps} between 0 and 10000`),
+    check("partners_name_not_blank", sql`length(btrim(${t.name})) between 1 and 40`),
+  ],
+);
+
+/**
+ * Parts de bénéfice d'une course revenant à chaque associé.
+ * Créées toutes ensemble au premier versement : la répartition de la course est alors figée
+ * (nom et pourcentage copiés), puis chaque part passe une seule fois de "pending" à "paid".
+ */
+export const partnerPayouts = pgTable(
+  "partner_payouts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    raceId: uuid("race_id")
+      .notNull()
+      .references(() => races.id, { onDelete: "restrict" }),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "restrict" }),
+    partnerName: text("partner_name").notNull(),
+    shareBps: integer("share_bps").notNull(),
+    amount: money("amount").notNull(),
+    status: text("status", { enum: SETTLEMENT_STATUSES }).notNull().default("pending"),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    paidAt: ts("paid_at"),
+  },
+  (t) => [
+    unique("partner_payouts_one_per_race").on(t.raceId, t.partnerId),
+    check("partner_payouts_amount_nonneg", sql`${t.amount} >= 0`),
+    check("partner_payouts_status_valid", sql`${t.status} in ('pending','paid')`),
+    check(
+      "partner_payouts_paid_consistent",
+      sql`(${t.status} = 'pending' and ${t.paidAt} is null) or (${t.status} = 'paid' and ${t.paidAt} is not null)`,
+    ),
+    index("partner_payouts_race_idx").on(t.raceId),
+  ],
+);
+
 export const OPERATION_TYPES = [
   "race_created",
   "race_deleted",
@@ -221,6 +277,8 @@ export const OPERATION_TYPES = [
   "payout_paid",
   "refund_paid",
   "race_completed",
+  "partners_updated",
+  "partner_paid",
   "backup_created",
   "backup_failed",
 ] as const;
@@ -245,4 +303,6 @@ export type Bet = typeof bets.$inferSelect;
 export type Settlement = typeof settlements.$inferSelect;
 export type RaceResult = typeof raceResults.$inferSelect;
 export type RaceClosure = typeof raceClosures.$inferSelect;
+export type Partner = typeof partners.$inferSelect;
+export type PartnerPayout = typeof partnerPayouts.$inferSelect;
 export type OperationLogEntry = typeof operationLog.$inferSelect;

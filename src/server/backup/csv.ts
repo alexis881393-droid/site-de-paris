@@ -1,11 +1,11 @@
 import { asc } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { bets, drivers, races, settlements } from "../db/schema";
-import { getAccountingRows } from "../services/queries";
+import { getAccountingRows, getPartnersOverview } from "../services/queries";
 import { RACE_STATUS_LABEL } from "@/lib/status";
 import { formatDateTime } from "@/lib/format";
 
-export type CsvKind = "courses" | "paris" | "reglements";
+export type CsvKind = "courses" | "paris" | "reglements" | "associes";
 
 const cell = (v: unknown): string => {
   if (v === null || v === undefined) return "";
@@ -20,6 +20,20 @@ const toCsv = (header: string[], rows: unknown[][]) =>
 const pct = (bps: number) => (bps / 100).toFixed(2).replace(".", ",");
 
 export async function buildCsv(db: Db, kind: CsvKind): Promise<string> {
+  if (kind === "associes") {
+    const o = await getPartnersOverview(db);
+    const STATE = { provisional: "Provisoire", pending: "À verser", paid: "Versé" } as const;
+    return toCsv(
+      ["Course", "Date", "Bénéfice de la course", "Associé", "Part %", "Montant", "Statut", "Versé le"],
+      o.races.flatMap((r) =>
+        r.shares.map((sh) => [
+          r.raceName, formatDateTime(r.date), r.revenue, sh.name, pct(sh.shareBps), sh.amount, STATE[sh.status],
+          sh.paidAt ? formatDateTime(sh.paidAt) : "",
+        ]),
+      ),
+    );
+  }
+
   if (kind === "courses") {
     const rows = await getAccountingRows(db);
     return toCsv(

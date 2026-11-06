@@ -103,6 +103,37 @@ export type GlobalAccountingDTO = {
   races: AccountingRowDTO[];
   daily: { day: string; stakes: number; revenue: number }[];
   backup: BackupStatusDTO;
+  partners: PartnersOverviewDTO;
+};
+
+export type PartnerDTO = { id: string; position: number; name: string; shareBps: number };
+
+/** Part d'un associé sur une course. "provisional" = calculée avec les parts actuelles, pas encore figée. */
+export type PartnerShareDTO = {
+  partnerId: string;
+  name: string;
+  shareBps: number;
+  amount: number;
+  status: "provisional" | "pending" | "paid";
+  paidAt: string | null;
+};
+
+export type PartnerRaceDTO = {
+  raceId: string;
+  raceName: string;
+  date: string;
+  revenue: number;
+  /** Répartition figée (au moins une part versée). */
+  locked: boolean;
+  shares: PartnerShareDTO[];
+};
+
+export type PartnersOverviewDTO = {
+  partners: PartnerDTO[];
+  /** Somme des parts = 100 % (sinon aucun versement possible). */
+  sharesValid: boolean;
+  /** Toutes les courses avec un bénéfice à redistribuer (plus récentes d'abord). */
+  races: PartnerRaceDTO[];
 };
 
 export type BackupStatusDTO = {

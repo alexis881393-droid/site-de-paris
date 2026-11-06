@@ -1,9 +1,9 @@
 import { and, asc, count, desc, eq, sql, sum } from "drizzle-orm";
 import type { Db } from "../db/client";
-import { bets, driverRegistryHidden, drivers, operationLog, raceClosures, raceResults, races, settlements, type Race } from "../db/schema";
+import { bets, driverRegistryHidden, drivers, operationLog, partnerPayouts, partners, raceClosures, raceResults, races, settlements, type Race } from "../db/schema";
 import { AppError } from "../errors";
 import { computeGlobalAccounting, computeRaceAccounting, type RaceAccountingInput } from "@/lib/accounting";
-import { computeCommission, computeOddsCents } from "@/lib/finance";
+import { computeCommission, computeOddsCents, splitByShares, toNumber } from "@/lib/finance";
 import type { RaceStatus } from "@/lib/constants";
 import type {
   AccountingRowDTO,
@@ -12,6 +12,8 @@ import type {
   DriverRowDTO,
   GlobalAccountingDTO,
   KnownDriverDTO,
+  PartnerRaceDTO,
+  PartnersOverviewDTO,
   RaceCardDTO,
   RaceDTO,
   RaceDetailDTO,
@@ -340,6 +342,45 @@ export async function getGlobalAccounting(
     races: rows,
     daily,
     backup: await getBackupStatus(db),
+    partners: await getPartnersOverview(db, all),
+  };
+}
+
+/** Bénéfice de chaque course et sa répartition entre les associés (figée ou provisoire). */
+export async function getPartnersOverview(db: Db, rows?: AccountingRowDTO[]): Promise<PartnersOverviewDTO> {
+  const [list, payouts, accounting] = await Promise.all([
+    db.select().from(partners).orderBy(asc(partners.position)),
+    db.select().from(partnerPayouts),
+    rows ? Promise.resolve(rows) : getAccountingRows(db),
+  ]);
+  const sharesValid = list.length > 0 && list.reduce((s, p) => s + p.shareBps, 0) === 10_000;
+  const position = new Map(list.map((p) => [p.id, p.position]));
+  const byRace = new Map<string, typeof payouts>();
+  for (const p of payouts) byRace.set(p.raceId, [...(byRace.get(p.raceId) ?? []), p]);
+
+  const out: PartnerRaceDTO[] = [];
+  for (const r of accounting) {
+    const revenue = r.accounting.organizerRevenue ?? 0;
+    const locked = byRace.get(r.id);
+    if (!locked && revenue <= 0) continue;
+    const shares: PartnerRaceDTO["shares"] = locked
+      ? [...locked]
+          .sort((a, b) => (position.get(a.partnerId) ?? 9) - (position.get(b.partnerId) ?? 9))
+          .map((p) => ({ partnerId: p.partnerId, name: p.partnerName, shareBps: p.shareBps, amount: p.amount, status: p.status, paidAt: iso(p.paidAt) }))
+      : splitByShares(revenue, list).map(({ item, amount }) => ({
+          partnerId: item.id,
+          name: item.name,
+          shareBps: item.shareBps,
+          amount: toNumber(amount),
+          status: "provisional" as const,
+          paidAt: null,
+        }));
+    out.push({ raceId: r.id, raceName: r.name, date: r.scheduledAt ?? r.createdAt, revenue, locked: !!locked, shares });
+  }
+  return {
+    partners: list.map((p) => ({ id: p.id, position: p.position, name: p.name, shareBps: p.shareBps })),
+    sharesValid,
+    races: out,
   };
 }
 

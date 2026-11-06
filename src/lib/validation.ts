@@ -106,3 +106,19 @@ export const raceListQuerySchema = z.object({
 export function formatZodError(err: z.ZodError): string {
   return err.issues.map((i) => i.message).join(" · ");
 }
+
+/** Configuration des associés : 4 noms et parts dont la somme vaut exactement 100 %. */
+export const partnersSchema = z.object({
+  partners: z
+    .array(
+      z.object({
+        id: z.string().uuid("Associé introuvable"),
+        name: trimmed(1, 40, "Nom de l'associé"),
+        shareBps: z.number().int("Part invalide").min(0, "Part invalide").max(10_000, "Part invalide"),
+      }),
+    )
+    .length(4, "Il faut exactement 4 associés.")
+    .refine((list) => list.reduce((s, p) => s + p.shareBps, 0) === 10_000, "La somme des parts doit faire exactement 100 %.")
+    .refine((list) => new Set(list.map((p) => p.id)).size === list.length, "Associé en double."),
+});
+export type PartnersInput = z.input<typeof partnersSchema>;

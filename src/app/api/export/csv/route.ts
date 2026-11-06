@@ -4,7 +4,7 @@ import { errorResponse } from "@/server/http";
 import { buildCsv, type CsvKind } from "@/server/backup/csv";
 
 export const dynamic = "force-dynamic";
-const KINDS: CsvKind[] = ["courses", "paris", "reglements"];
+const KINDS: CsvKind[] = ["courses", "paris", "reglements", "associes"];
 
 /** Exports CSV comptables (séparateur ";" et BOM UTF-8 pour Excel FR). */
 export async function GET(req: Request) {

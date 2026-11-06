@@ -69,6 +69,7 @@ Code : [`src/lib/finance.ts`](src/lib/finance.ts) (100 % entiers `BigInt`, aucun
 | **Un pari par joueur et par course** | Clé d'identité `tel:<chiffres du numéro de téléphone>` sinon `name:<nom normalisé>` (casse, accents, espaces et séparateurs du numéro ignorés). Contrainte d'unicité PostgreSQL. Un même nom RP ne peut pas contourner la règle en ajoutant ou omettant un numéro. |
 | **Paris immuables** | Aucune route de modification/suppression (HTTP 405) **et** trigger PostgreSQL qui refuse tout `UPDATE` / `DELETE` / `TRUNCATE`. |
 | **Paiements idempotents** | Un règlement ne passe qu'une fois de « à verser » à « versé » (verrou de ligne + trigger). Un double clic ne compte rien deux fois. |
+| **Redistribution aux associés** | Le bénéfice de la course (revenu de l'organisateur) est partagé entre **4 associés** (25 % chacun par défaut, noms et parts modifiables, total obligatoirement 100 %). Répartition au dollar près par plus grands restes. Dans l'onglet Comptabilité de la course sélectionnée, chaque part se marque « versée » ; au **premier versement**, la répartition de la course est **figée** (noms et pourcentages copiés, montant immuable par trigger). Une course avec des parts encore à verser ne peut pas être supprimée. |
 
 **Comptabilité** : le revenu de l'organisateur n'est compté que lorsqu'il est **définitivement acquis** (résultat enregistré). Avant, les mises sont affichées comme « fonds détenus ». Revenu global = commissions acquises (courses avec gagnants) + cagnottes conservées (courses sans gagnant) : deux postes exclusifs pour une même course.
 
@@ -233,6 +234,7 @@ Tant que les 5 variables `CRON_SECRET` + `R2_*` ne sont pas renseignées, l'ongl
 - **CSV courses** : comptabilité par course.
 - **CSV paris** : tous les paris avec règlement associé.
 - **CSV règlements** : gains et remboursements.
+- **CSV associés** : part de chaque associé par course (provisoire, à verser, versée).
 
 Les CSV utilisent le séparateur `;` et l'encodage UTF-8 avec BOM (ouverture directe dans Excel en français).
 

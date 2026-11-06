@@ -3,6 +3,8 @@ import type { Db, Tx } from "../db/client";
 import {
   bets,
   driverRegistryHidden,
+  partnerPayouts,
+  partners,
   drivers,
   raceClosures,
   raceResults,
@@ -13,7 +15,7 @@ import {
 } from "../db/schema";
 import { AppError, mapDbError } from "../errors";
 import { logOperation } from "../log";
-import { parseCommissionPercent, planCancellation, planResult, toNumber } from "@/lib/finance";
+import { parseCommissionPercent, planCancellation, planResult, splitByShares, toNumber } from "@/lib/finance";
 import { parisLocalToDate } from "@/lib/format";
 import { canDeleteRace } from "@/lib/status";
 import { bettorIdentityKey, cleanDisplayName, cleanPhone, normalizeName, normalizePhone } from "@/lib/identity";
@@ -21,10 +23,12 @@ import {
   createRaceSchema,
   driverSchema,
   formatZodError,
+  partnersSchema,
   placeBetSchema,
   recordResultSchema,
   type CreateRaceInput,
   type DriverInput,
+  type PartnersInput,
   type PlaceBetInput,
   type RecordResultInput,
 } from "@/lib/validation";
@@ -459,5 +463,69 @@ export async function paySettlement(db: Db, settlementId: string) {
       await logOperation(t, "race_completed", race.id, { status: raceStatus });
     }
     return { settlement: paid!, alreadyPaid: false, raceStatus };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Redistribution des bénéfices entre associés
+// ---------------------------------------------------------------------------
+
+/** Modifie noms et parts des 4 associés. N'affecte pas les courses dont la répartition est déjà figée. */
+export async function updatePartners(db: Db, input: PartnersInput) {
+  const data = parse(partnersSchema, input);
+  return tx(db, async (t) => {
+    const current = await t.select().from(partners).for("update");
+    const known = new Set(current.map((p) => p.id));
+    if (current.length !== 4 || data.partners.some((p) => !known.has(p.id))) {
+      throw new AppError("NOT_FOUND", "Associé introuvable : rechargez la page.");
+    }
+    const now = new Date();
+    for (const p of data.partners) {
+      await t.update(partners).set({ name: p.name, shareBps: p.shareBps, updatedAt: now }).where(eq(partners.id, p.id));
+    }
+    await logOperation(t, "partners_updated", null, {
+      partners: data.partners.map((p) => ({ id: p.id, name: p.name, shareBps: p.shareBps })),
+    });
+    return t.select().from(partners).orderBy(partners.position);
+  });
+}
+
+/**
+ * Marque la part d'un associé comme versée pour une course.
+ * Au premier versement, la répartition complète de la course est figée (4 parts créées
+ * avec les noms et pourcentages du moment). Idempotent : un second clic ne change rien.
+ */
+export async function payPartnerShare(db: Db, raceId: string, partnerId: string) {
+  assertId(raceId, "Course");
+  assertId(partnerId, "Associé");
+  return tx(db, async (t) => {
+    const race = await lockRace(t, raceId, "update");
+    requireStatus(race, ["result", "paid"], "Le bénéfice n'est redistribuable qu'une fois le résultat officiel enregistré.");
+    const [result] = await t.select().from(raceResults).where(eq(raceResults.raceId, raceId));
+    if (!result || result.organizerKept <= 0) throw new AppError("RACE_STATE", "Aucun bénéfice à redistribuer sur cette course.");
+
+    let rows = await t.select().from(partnerPayouts).where(eq(partnerPayouts.raceId, raceId)).for("update");
+    if (rows.length === 0) {
+      const list = await t.select().from(partners).orderBy(partners.position).for("share");
+      if (list.reduce((s, p) => s + p.shareBps, 0) !== 10_000) {
+        throw new AppError("VALIDATION", "Les parts des associés ne font pas 100 % : corrigez-les avant de verser.");
+      }
+      const split = splitByShares(result.organizerKept, list);
+      rows = await t
+        .insert(partnerPayouts)
+        .values(split.map(({ item, amount }) => ({ raceId, partnerId: item.id, partnerName: item.name, shareBps: item.shareBps, amount: toNumber(amount) })))
+        .returning();
+    }
+    const row = rows.find((r) => r.partnerId === partnerId);
+    if (!row) throw new AppError("NOT_FOUND", "Cet associé ne fait pas partie de la répartition de cette course.");
+    if (row.status === "paid") return { payout: row, alreadyPaid: true };
+
+    const [paid] = await t
+      .update(partnerPayouts)
+      .set({ status: "paid", paidAt: new Date() })
+      .where(and(eq(partnerPayouts.id, row.id), eq(partnerPayouts.status, "pending")))
+      .returning();
+    await logOperation(t, "partner_paid", raceId, { partnerId, name: row.partnerName, amount: row.amount });
+    return { payout: paid!, alreadyPaid: false };
   });
 }

@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { Db, Tx } from "../db/client";
-import { bets, driverRegistryHidden, drivers, operationLog, raceClosures, raceResults, races, settlements } from "../db/schema";
+import { bets, driverRegistryHidden, drivers, operationLog, partnerPayouts, partners, raceClosures, raceResults, races, settlements } from "../db/schema";
 import { verifyBackup, type BackupFile } from "./export";
 
 const DATE_FIELDS = new Set([
@@ -15,6 +15,7 @@ const DATE_FIELDS = new Set([
   "recordedAt",
   "paidAt",
   "hiddenAt",
+  "updatedAt",
 ]);
 
 const revive = (rows: Record<string, unknown>[]) =>
@@ -47,7 +48,7 @@ export async function restoreBackup(db: Db, raw: unknown, opts: { wipe?: boolean
     const [{ n }] = (await t.select({ n: sql<number>`count(*)::int` }).from(races)) as [{ n: number }];
     if (Number(n) > 0) {
       if (!opts.wipe) throw new Error("La base cible contient déjà des données. Relancez avec --wipe pour l'écraser.");
-      for (const table of [driverRegistryHidden, operationLog, settlements, raceResults, raceClosures, bets, drivers, races]) {
+      for (const table of [partnerPayouts, driverRegistryHidden, operationLog, settlements, raceResults, raceClosures, bets, drivers, races]) {
         await t.delete(table);
       }
     }
@@ -62,6 +63,13 @@ export async function restoreBackup(db: Db, raw: unknown, opts: { wipe?: boolean
     await insertChunks(t, operationLog, revive(file.data.operationLog));
     // Absent des sauvegardes antérieures à cette table : liste vide.
     await insertChunks(t, driverRegistryHidden, revive(file.data.driverRegistryHidden ?? []));
+    // Associés : ceux de la sauvegarde remplacent les associés par défaut créés par la migration.
+    if (file.data.partners?.length) {
+      await t.delete(partnerPayouts);
+      await t.delete(partners);
+      await insertChunks(t, partners, revive(file.data.partners));
+    }
+    await insertChunks(t, partnerPayouts, revive(file.data.partnerPayouts ?? []));
     await t.execute(
       sql`select setval(pg_get_serial_sequence('operation_log','id'), coalesce((select max(id) from operation_log), 0) + 1, false)`,
     );

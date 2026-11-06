@@ -22,6 +22,13 @@
       "when": 1793980750948,
       "tag": "0002_race_purge_registry_phone",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793985613464,
+      "tag": "0003_partners",
+      "breakpoints": true
     }
   ]
 }

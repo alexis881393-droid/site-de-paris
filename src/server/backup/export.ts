@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { asc } from "drizzle-orm";
 import type { Db } from "../db/client";
-import { bets, driverRegistryHidden, drivers, operationLog, raceClosures, raceResults, races, settlements } from "../db/schema";
+import { bets, driverRegistryHidden, drivers, operationLog, partnerPayouts, partners, raceClosures, raceResults, races, settlements } from "../db/schema";
 
 export const BACKUP_FORMAT = "racebet-control-backup";
 export const BACKUP_FORMAT_VERSION = 1;
@@ -15,6 +15,8 @@ export type BackupData = {
   settlements: Record<string, unknown>[];
   operationLog: Record<string, unknown>[];
   driverRegistryHidden: Record<string, unknown>[];
+  partners: Record<string, unknown>[];
+  partnerPayouts: Record<string, unknown>[];
 };
 
 export type BackupFile = {
@@ -49,6 +51,8 @@ export async function buildBackup(db: Db): Promise<BackupFile> {
       settlements: plain(await q.select().from(settlements).orderBy(asc(settlements.createdAt), asc(settlements.id))),
       operationLog: plain(await q.select().from(operationLog).orderBy(asc(operationLog.id))),
       driverRegistryHidden: plain(await q.select().from(driverRegistryHidden).orderBy(asc(driverRegistryHidden.nameKey))),
+      partners: plain(await q.select().from(partners).orderBy(asc(partners.position))),
+      partnerPayouts: plain(await q.select().from(partnerPayouts).orderBy(asc(partnerPayouts.createdAt), asc(partnerPayouts.id))),
     };
     return result;
   }, { isolationLevel: "repeatable read", accessMode: "read only" });

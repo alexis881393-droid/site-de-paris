@@ -1,0 +1,1113 @@
+{
+  "id": "6bc30f1c-5e20-43d0-9380-aa5017b92cc6",
+  "prevId": "f588eb86-5193-468c-986e-32973482903e",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.bets": {
+      "name": "bets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "race_id": {
+          "name": "race_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "driver_id": {
+          "name": "driver_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bettor_name": {
+          "name": "bettor_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bettor_name_key": {
+          "name": "bettor_name_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fivem_id": {
+          "name": "fivem_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "identity_key": {
+          "name": "identity_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "bets_race_idx": {
+          "name": "bets_race_idx",
+          "columns": [
+            {
+              "expression": "race_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "bets_driver_idx": {
+          "name": "bets_driver_idx",
+          "columns": [
+            {
+              "expression": "driver_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bets_race_id_races_id_fk": {
+          "name": "bets_race_id_races_id_fk",
+          "tableFrom": "bets",
+          "tableTo": "races",
+          "columnsFrom": [
+            "race_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "bets_driver_same_race_fk": {
+          "name": "bets_driver_same_race_fk",
+          "tableFrom": "bets",
+          "tableTo": "drivers",
+          "columnsFrom": [
+            "driver_id",
+            "race_id"
+          ],
+          "columnsTo": [
+            "id",
+            "race_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "bets_request_id_key": {
+          "name": "bets_request_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "request_id"
+          ]
+        },
+        "bets_one_per_player_per_race": {
+          "name": "bets_one_per_player_per_race",
+          "nullsNotDistinct": false,
+          "columns": [
+            "race_id",
+            "identity_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "bets_amount_positive": {
+          "name": "bets_amount_positive",
+          "value": "\"bets\".\"amount\" > 0 and \"bets\".\"amount\" <= 1000000000000"
+        },
+        "bets_identity_prefix": {
+          "name": "bets_identity_prefix",
+          "value": "\"bets\".\"identity_key\" ~ '^(fivem|tel|name):.+'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.driver_registry_hidden": {
+      "name": "driver_registry_hidden",
+      "schema": "",
+      "columns": {
+        "name_key": {
+          "name": "name_key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "hidden_at": {
+          "name": "hidden_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.drivers": {
+      "name": "drivers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "race_id": {
+          "name": "race_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name_key": {
+          "name": "name_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_position": {
+          "name": "final_position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_winner": {
+          "name": "is_winner",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "drivers_race_number_key": {
+          "name": "drivers_race_number_key",
+          "columns": [
+            {
+              "expression": "race_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"drivers\".\"number\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "drivers_race_position_key": {
+          "name": "drivers_race_position_key",
+          "columns": [
+            {
+              "expression": "race_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "final_position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"drivers\".\"final_position\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "drivers_one_winner_per_race": {
+          "name": "drivers_one_winner_per_race",
+          "columns": [
+            {
+              "expression": "race_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"drivers\".\"is_winner\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "drivers_race_id_races_id_fk": {
+          "name": "drivers_race_id_races_id_fk",
+          "tableFrom": "drivers",
+          "tableTo": "races",
+          "columnsFrom": [
+            "race_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "drivers_race_name_key": {
+          "name": "drivers_race_name_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "race_id",
+            "name_key"
+          ]
+        },
+        "drivers_id_race_key": {
+          "name": "drivers_id_race_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "race_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "drivers_number_range": {
+          "name": "drivers_number_range",
+          "value": "\"drivers\".\"number\" is null or \"drivers\".\"number\" between 0 and 9999"
+        },
+        "drivers_position_range": {
+          "name": "drivers_position_range",
+          "value": "\"drivers\".\"final_position\" is null or \"drivers\".\"final_position\" >= 1"
+        },
+        "drivers_name_not_blank": {
+          "name": "drivers_name_not_blank",
+          "value": "length(btrim(\"drivers\".\"name\")) between 1 and 60"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.operation_log": {
+      "name": "operation_log",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "race_id": {
+          "name": "race_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "operation_log_race_idx": {
+          "name": "operation_log_race_idx",
+          "columns": [
+            {
+              "expression": "race_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "operation_log_created_idx": {
+          "name": "operation_log_created_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.partner_payouts": {
+      "name": "partner_payouts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "race_id": {
+          "name": "race_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "partner_id": {
+          "name": "partner_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "partner_name": {
+          "name": "partner_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "share_bps": {
+          "name": "share_bps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "paid_at": {
+          "name": "paid_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "partner_payouts_race_idx": {
+          "name": "partner_payouts_race_idx",
+          "columns": [
+            {
+              "expression": "race_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "partner_payouts_race_id_races_id_fk": {
+          "name": "partner_payouts_race_id_races_id_fk",
+          "tableFrom": "partner_payouts",
+          "tableTo": "races",
+          "columnsFrom": [
+            "race_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "partner_payouts_partner_id_partners_id_fk": {
+          "name": "partner_payouts_partner_id_partners_id_fk",
+          "tableFrom": "partner_payouts",
+          "tableTo": "partners",
+          "columnsFrom": [
+            "partner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "partner_payouts_one_per_race": {
+          "name": "partner_payouts_one_per_race",
+          "nullsNotDistinct": false,
+          "columns": [
+            "race_id",
+            "partner_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "partner_payouts_amount_nonneg": {
+          "name": "partner_payouts_amount_nonneg",
+          "value": "\"partner_payouts\".\"amount\" >= 0"
+        },
+        "partner_payouts_status_valid": {
+          "name": "partner_payouts_status_valid",
+          "value": "\"partner_payouts\".\"status\" in ('pending','paid')"
+        },
+        "partner_payouts_paid_consistent": {
+          "name": "partner_payouts_paid_consistent",
+          "value": "(\"partner_payouts\".\"status\" = 'pending' and \"partner_payouts\".\"paid_at\" is null) or (\"partner_payouts\".\"status\" = 'paid' and \"partner_payouts\".\"paid_at\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.partners": {
+      "name": "partners",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "share_bps": {
+          "name": "share_bps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "partners_position_key": {
+          "name": "partners_position_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "position"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "partners_position_range": {
+          "name": "partners_position_range",
+          "value": "\"partners\".\"position\" between 1 and 4"
+        },
+        "partners_share_range": {
+          "name": "partners_share_range",
+          "value": "\"partners\".\"share_bps\" between 0 and 10000"
+        },
+        "partners_name_not_blank": {
+          "name": "partners_name_not_blank",
+          "value": "length(btrim(\"partners\".\"name\")) between 1 and 40"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.race_closures": {
+      "name": "race_closures",
+      "schema": "",
+      "columns": {
+        "race_id": {
+          "name": "race_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "total_pool": {
+          "name": "total_pool",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bet_count": {
+          "name": "bet_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "commission_bps": {
+          "name": "commission_bps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "driver_pools": {
+          "name": "driver_pools",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "race_closures_race_id_races_id_fk": {
+          "name": "race_closures_race_id_races_id_fk",
+          "tableFrom": "race_closures",
+          "tableTo": "races",
+          "columnsFrom": [
+            "race_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "race_closures_pool_nonneg": {
+          "name": "race_closures_pool_nonneg",
+          "value": "\"race_closures\".\"total_pool\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.race_results": {
+      "name": "race_results",
+      "schema": "",
+      "columns": {
+        "race_id": {
+          "name": "race_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "winner_driver_id": {
+          "name": "winner_driver_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "total_pool": {
+          "name": "total_pool",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "commission_bps": {
+          "name": "commission_bps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "commission_amount": {
+          "name": "commission_amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "distributable_pool": {
+          "name": "distributable_pool",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "winner_pool": {
+          "name": "winner_pool",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "winners_count": {
+          "name": "winners_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_payout": {
+          "name": "total_payout",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organizer_kept": {
+          "name": "organizer_kept",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "no_winner": {
+          "name": "no_winner",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "race_results_race_id_races_id_fk": {
+          "name": "race_results_race_id_races_id_fk",
+          "tableFrom": "race_results",
+          "tableTo": "races",
+          "columnsFrom": [
+            "race_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "race_results_winner_driver_id_drivers_id_fk": {
+          "name": "race_results_winner_driver_id_drivers_id_fk",
+          "tableFrom": "race_results",
+          "tableTo": "drivers",
+          "columnsFrom": [
+            "winner_driver_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "race_results_balance": {
+          "name": "race_results_balance",
+          "value": "\"race_results\".\"total_payout\" + \"race_results\".\"organizer_kept\" = \"race_results\".\"total_pool\""
+        },
+        "race_results_nonneg": {
+          "name": "race_results_nonneg",
+          "value": "\"race_results\".\"total_payout\" >= 0 and \"race_results\".\"organizer_kept\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.races": {
+      "name": "races",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scheduled_at": {
+          "name": "scheduled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commission_bps": {
+          "name": "commission_bps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "opened_at": {
+          "name": "opened_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result_at": {
+          "name": "result_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cancelled_at": {
+          "name": "cancelled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "races_status_idx": {
+          "name": "races_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "races_created_idx": {
+          "name": "races_created_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "races_commission_range": {
+          "name": "races_commission_range",
+          "value": "\"races\".\"commission_bps\" between 0 and 10000"
+        },
+        "races_name_not_blank": {
+          "name": "races_name_not_blank",
+          "value": "length(btrim(\"races\".\"name\")) between 1 and 120"
+        },
+        "races_status_valid": {
+          "name": "races_status_valid",
+          "value": "\"races\".\"status\" in ('draft','open','closed','result','paid','cancelled','refunded')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.settlements": {
+      "name": "settlements",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "race_id": {
+          "name": "race_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bet_id": {
+          "name": "bet_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_due": {
+          "name": "amount_due",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_paid": {
+          "name": "amount_paid",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "paid_at": {
+          "name": "paid_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "settlements_race_idx": {
+          "name": "settlements_race_idx",
+          "columns": [
+            {
+              "expression": "race_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "settlements_race_id_races_id_fk": {
+          "name": "settlements_race_id_races_id_fk",
+          "tableFrom": "settlements",
+          "tableTo": "races",
+          "columnsFrom": [
+            "race_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "settlements_bet_id_bets_id_fk": {
+          "name": "settlements_bet_id_bets_id_fk",
+          "tableFrom": "settlements",
+          "tableTo": "bets",
+          "columnsFrom": [
+            "bet_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "settlements_one_per_bet": {
+          "name": "settlements_one_per_bet",
+          "nullsNotDistinct": false,
+          "columns": [
+            "bet_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "settlements_kind_valid": {
+          "name": "settlements_kind_valid",
+          "value": "\"settlements\".\"kind\" in ('payout','refund')"
+        },
+        "settlements_status_valid": {
+          "name": "settlements_status_valid",
+          "value": "\"settlements\".\"status\" in ('pending','paid')"
+        },
+        "settlements_due_nonneg": {
+          "name": "settlements_due_nonneg",
+          "value": "\"settlements\".\"amount_due\" >= 0"
+        },
+        "settlements_paid_consistent": {
+          "name": "settlements_paid_consistent",
+          "value": "(\"settlements\".\"status\" = 'pending' and \"settlements\".\"amount_paid\" = 0 and \"settlements\".\"paid_at\" is null) or (\"settlements\".\"status\" = 'paid' and \"settlements\".\"amount_paid\" = \"settlements\".\"amount_due\" and \"settlements\".\"paid_at\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

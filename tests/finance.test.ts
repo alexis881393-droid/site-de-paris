@@ -7,6 +7,7 @@ import {
   parseCommissionPercent,
   planCancellation,
   planResult,
+  splitByShares,
 } from "@/lib/finance";
 import { computeGlobalAccounting, computeRaceAccounting } from "@/lib/accounting";
 import { bettorIdentityKey, normalizeName } from "@/lib/identity";
@@ -188,5 +189,24 @@ describe("Saisies et normalisation", () => {
     expect(formatMoney(125000)).toBe("125 000 $");
     expect(parisLocalToDate("2026-07-14T21:30")!.toISOString()).toBe("2026-07-14T19:30:00.000Z"); // été UTC+2
     expect(parisLocalToDate("2026-12-24T21:30")!.toISOString()).toBe("2026-12-24T20:30:00.000Z"); // hiver UTC+1
+  });
+});
+
+describe("Redistribution entre associés", () => {
+  const P = (bps: number[]) => bps.map((shareBps, i) => ({ id: `p${i + 1}`, position: i + 1, shareBps }));
+  it("parts égales : 30 000 → 7 500 chacun", () => {
+    expect(splitByShares(30_000, P([2500, 2500, 2500, 2500])).map((x) => x.amount)).toEqual([7500n, 7500n, 7500n, 7500n]);
+  });
+  it("reste réparti par plus grands restes, somme exacte", () => {
+    const r = splitByShares(10_003, P([2500, 2500, 2500, 2500]));
+    expect(r.map((x) => x.amount)).toEqual([2501n, 2501n, 2501n, 2500n]);
+    expect(r.reduce((s, x) => s + x.amount, 0n)).toBe(10_003n);
+  });
+  it("parts inégales et propriété de somme exacte", () => {
+    for (let total = 0; total < 2000; total += 7) {
+      const r = splitByShares(total, P([3333, 3333, 3334, 0]));
+      expect(r.reduce((s, x) => s + x.amount, 0n)).toBe(BigInt(total));
+      expect(r[3]!.amount).toBe(0n);
+    }
   });
 });
