@@ -138,7 +138,7 @@ npm run build       # build de production
 npm start           # lance le build de production en local
 ```
 
-Remise à zéro en gardant une seule course et ses pilotes (sauvegarde automatique dans `.ackups\` avant effacement) :
+Remise à zéro en gardant une seule course et ses pilotes (sauvegarde automatique dans le dossier `backups` avant effacement) :
 
 ```powershell
 npm run reset:keep -- "Liste noire"           # aperçu, ne modifie rien
