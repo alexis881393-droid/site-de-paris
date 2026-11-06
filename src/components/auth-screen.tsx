@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ArrowLeft, KeyRound, LogIn, UserPlus } from "lucide-react";
 import { api } from "@/lib/api-client";
+import { Backdrop } from "./backdrop";
 import { Logo } from "./logo";
 import { Button, Field, ICON, Input, Plate, cx } from "./ui";
 
@@ -50,7 +51,9 @@ export function AuthScreen() {
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-12">
+    <>
+    <Backdrop intensity="high" />
+    <main className="stagger relative mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-12">
       <div className="flex items-center justify-between">
         <Logo />
         <a href="/" className="flex items-center gap-1.5 text-sm text-mute transition-colors hover:text-ink">
@@ -161,5 +164,6 @@ export function AuthScreen() {
         </form>
       </Plate>
     </main>
+    </>
   );
 }

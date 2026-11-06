@@ -24,7 +24,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const VARIANTS: Record<Variant, string> = {
   primary:
-    "bg-flame text-black hover:bg-flame-hot shadow-[0_0_0_1px_rgb(255_140_0/0.6),0_0_22px_-4px_rgb(255_107_0/0.65)] hover:shadow-[0_0_0_1px_rgb(255_177_92/0.9),0_0_30px_-2px_rgb(255_107_0/0.8)]",
+    "btn-neon bg-flame text-black hover:bg-flame-hot shadow-[0_0_0_1px_rgb(255_140_0/0.6),0_0_22px_-4px_rgb(255_107_0/0.65)] hover:shadow-[0_0_0_1px_rgb(255_177_92/0.9),0_0_30px_-2px_rgb(255_107_0/0.8)]",
   outline: "bg-transparent text-flame-soft ring-1 ring-inset ring-flame/50 hover:bg-flame/10 hover:ring-flame",
   ghost: "bg-transparent text-mute hover:text-ink hover:bg-white/5",
   danger: "bg-stop/10 text-[#ff8a95] ring-1 ring-inset ring-stop/50 hover:bg-stop/20 hover:ring-stop",
@@ -80,11 +80,10 @@ export function Plate({
   coreClassName?: string;
   glow?: boolean;
 }) {
-  return (
-    <div className={cx("chamfer", glow ? "plate-frame" : "plate-frame-quiet", className)}>
-      <div className={cx("chamfer plate-core h-full", coreClassName)}>{children}</div>
-    </div>
-  );
+  const core = <div className={cx("chamfer plate-core h-full", coreClassName)}>{children}</div>;
+  // Plaque mise en avant : bordure néon animée (faisceau tournant, voir globals.css).
+  if (glow) return <div className={cx("chamfer plate-frame", className)}>{core}</div>;
+  return <div className={cx("chamfer plate-frame-quiet", className)}>{core}</div>;
 }
 
 export function SectionTitle({ children, aside, sub }: { children: ReactNode; aside?: ReactNode; sub?: ReactNode }) {

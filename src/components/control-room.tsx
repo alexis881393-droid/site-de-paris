@@ -9,6 +9,7 @@ import { api, useRace, useRaces } from "@/lib/api-client";
 import type { SessionUserDTO } from "@/lib/dto";
 import { formatDateTime, formatMoney, formatPercentBps } from "@/lib/format";
 import { ACTIVE_STATUSES } from "@/lib/status";
+import { Backdrop } from "./backdrop";
 import { Logo } from "./logo";
 import { NewRaceDialog, RaceManagerDialog } from "./race-dialogs";
 import { Button, EmptyState, ICON, Spinner, StatusBadge, cx } from "./ui";
@@ -102,8 +103,9 @@ export function ControlRoom({ user }: { user: SessionUserDTO }) {
 
   return (
     <div className="min-h-dvh">
+      <Backdrop />
       {/* ------------------------------------------------------------- En-tête */}
-      <header className="sticky top-0 z-30 border-b border-line/80 bg-void/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+      <header className="header-neon sticky top-0 z-30 bg-void/75 pt-[env(safe-area-inset-top)] backdrop-blur-md">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6 md:px-8 xl:px-6">
           <Logo />
           <div className="mx-1 hidden h-8 w-px bg-line md:block" aria-hidden />
@@ -217,7 +219,7 @@ export function ControlRoom({ user }: { user: SessionUserDTO }) {
                     key={t.id}
                     value={t.id}
                     className={cx(
-                      "chamfer-sm group relative flex shrink-0 items-center gap-2 px-3 py-2.5 font-display sm:px-4 pointer-coarse:px-5 pointer-coarse:py-3.5 text-[0.9rem] font-semibold tracking-[0.12em] uppercase transition-colors",
+                      "tab-neon btn-neon chamfer-sm group relative flex shrink-0 items-center gap-2 px-3 py-2.5 font-display sm:px-4 pointer-coarse:px-5 pointer-coarse:py-3.5 text-[0.9rem] font-semibold tracking-[0.12em] uppercase transition-colors",
                       "text-mute hover:text-ink data-[state=active]:bg-flame data-[state=active]:text-black data-[state=active]:shadow-[0_0_24px_-6px_rgb(255_107_0/0.9)]",
                     )}
                   >
@@ -242,16 +244,16 @@ export function ControlRoom({ user }: { user: SessionUserDTO }) {
                 <ConnectionError message={detailError.message} />
               ) : (
                 <>
-                  <Tabs.Content value="pilotes" className="focus:outline-none">
+                  <Tabs.Content value="pilotes" className="focus:outline-none data-[state=active]:animate-tab-enter">
                     {detail ? <DriversTab detail={detail} onGoToBets={() => setParam("tab", "paris")} /> : <Loading />}
                   </Tabs.Content>
-                  <Tabs.Content value="paris" className="focus:outline-none">
+                  <Tabs.Content value="paris" className="focus:outline-none data-[state=active]:animate-tab-enter">
                     {detail ? <BetsTab detail={detail} onGoToDrivers={() => setParam("tab", "pilotes")} /> : <Loading />}
                   </Tabs.Content>
-                  <Tabs.Content value="comptabilite" className="focus:outline-none">
+                  <Tabs.Content value="comptabilite" className="focus:outline-none data-[state=active]:animate-tab-enter">
                     <AccountingTab detail={detail ?? null} onSelectRace={(id) => selectRace(id)} />
                   </Tabs.Content>
-                  <Tabs.Content value="comptes" className="focus:outline-none">
+                  <Tabs.Content value="comptes" className="focus:outline-none data-[state=active]:animate-tab-enter">
                     {tab === "comptes" && <AccountsTab />}
                   </Tabs.Content>
                 </>

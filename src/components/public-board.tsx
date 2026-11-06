@@ -6,6 +6,7 @@ import { ArrowDownRight, ArrowUpRight, Banknote, Lock, Trophy } from "lucide-rea
 import { usePublicOdds } from "@/lib/api-client";
 import type { PublicDriverDTO, PublicOddsDTO } from "@/lib/dto";
 import { formatDateTime, formatOdds, formatTime } from "@/lib/format";
+import { Backdrop } from "./backdrop";
 import { Logo } from "./logo";
 import { EmptyState, ICON, Plate, Spinner, cx } from "./ui";
 
@@ -29,7 +30,8 @@ export function PublicBoard() {
 
   return (
     <div className="min-h-dvh">
-      <header className="border-b border-line/80 bg-void/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+      <Backdrop intensity="high" />
+      <header className="header-neon relative bg-void/70 pt-[env(safe-area-inset-top)] backdrop-blur-md">
         <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-4">
             <Logo />
@@ -42,7 +44,7 @@ export function PublicBoard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1200px] space-y-6 px-4 pt-6 pb-16 sm:px-6">
+      <main className="stagger mx-auto max-w-[1200px] space-y-6 px-4 pt-6 pb-16 sm:px-6">
         <CashNotice />
 
         {!data ? (
@@ -127,9 +129,15 @@ function RaceOdds({ race }: { race: Race }) {
     <section className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-wide sm:text-3xl">{race.name}</h1>
+          <div className="checker mb-3 w-40" aria-hidden />
+          <h1 className="neon-text font-display text-3xl font-bold tracking-wide text-balance sm:text-4xl">{race.name}</h1>
           <p className="mt-1 flex items-center gap-2 text-sm text-mute">
-            {status.live && <span className="h-2 w-2 animate-pulse rounded-full bg-flame shadow-[0_0_10px_var(--color-flame)]" aria-hidden />}
+            {status.live && (
+              <span className="chamfer-sm inline-flex items-center gap-1.5 bg-flame px-2 py-0.5 font-cond text-[0.7rem] font-bold tracking-[0.18em] text-black">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-black" aria-hidden />
+                LIVE
+              </span>
+            )}
             {status.label}
             {race.scheduledAt && <span className="text-dim">· départ {formatDateTime(race.scheduledAt)}</span>}
           </p>
@@ -140,7 +148,7 @@ function RaceOdds({ race }: { race: Race }) {
       {race.drivers.length === 0 ? (
         <p className="text-sm text-mute">Pilotes bientôt annoncés.</p>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <ul className="stagger grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {sorted.map((d, rank) => {
             const i = colorIndex.get(d.id)!;
             const before = prev?.[d.id] ?? null;
@@ -149,11 +157,11 @@ function RaceOdds({ race }: { race: Race }) {
               <li
                 key={d.id}
                 className={cx(
-                  "chamfer-sm flex items-center gap-3 bg-plate px-4 py-3.5 ring-1 ring-inset",
+                  "lift chamfer-sm flex items-center gap-3 bg-plate/90 px-4 py-3.5 ring-1 ring-inset backdrop-blur-sm",
                   d.isWinner ? "ring-flame/70 shadow-[0_0_24px_-8px_var(--color-flame)]" : "ring-line",
                 )}
               >
-                <span className="h-10 w-1.5 shrink-0" style={{ background: colorOf(i) }} aria-hidden />
+                <span className="h-10 w-1.5 shrink-0" style={{ background: colorOf(i), boxShadow: `0 0 10px ${colorOf(i)}` }} aria-hidden />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 text-xs text-dim">
                     {d.isWinner ? (
@@ -167,7 +175,9 @@ function RaceOdds({ race }: { race: Race }) {
                   <div className="truncate font-display text-[1.05rem] font-semibold">{d.name}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-display text-2xl font-semibold tabular-nums text-ink">{d.oddsCents == null ? "—" : formatOdds(d.oddsCents)}</div>
+                  <div className={cx("font-display text-2xl font-semibold tabular-nums", (d.isWinner || (rank === 0 && !winner && d.oddsCents != null)) ? "neon-text" : "text-ink")}>
+                    {d.oddsCents == null ? "—" : formatOdds(d.oddsCents)}
+                  </div>
                   <div className="h-4 text-xs">
                     {d.oddsCents == null ? (
                       <span className="text-dim">aucune mise</span>
@@ -312,10 +322,22 @@ function OddsChart({ race }: { race: Race }) {
           <text x={W - PAD.right} y={H - 8} textAnchor="end" className="fill-dim text-[12px]">{formatTime(last.t)}</text>
         )}
 
+        <defs>
+          <filter id="odds-glow" x="-5%" y="-20%" width="110%" height="140%">
+            <feGaussianBlur stdDeviation="2.4" result="b" />
+            <feMerge>
+              <feMergeNode in="b" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
         {paths.map((p, i) => (
           <path
             key={drivers[i]!.id}
             d={p}
+            pathLength={dashOf(i) ? undefined : 1}
+            className={dashOf(i) ? undefined : "draw-line"}
+            filter="url(#odds-glow)"
             fill="none"
             stroke={colorOf(i)}
             strokeWidth={2}
